@@ -1,0 +1,5 @@
+zip_code,score,label,notes
+02139,1,A,ok
+10001,2,B,?
+30301,1,A,unknown
+94105,3,C,valid text

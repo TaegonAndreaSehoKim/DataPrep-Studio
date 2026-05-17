@@ -1,0 +1,6 @@
+age,income,city,target
+25,50000,Seattle,no
+30,55000,Austin,no
+35,60000,Seattle,no
+40,65000,Chicago,yes
+45,70000,Austin,no

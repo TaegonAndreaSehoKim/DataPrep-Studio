@@ -1,0 +1,1746 @@
+You are Codex acting as a senior full-stack engineer and ML tooling engineer. Build a new full-stack project named DataPrep Studio.
+
+DataPrep Studio is an expert-oriented data quality and preprocessing workbench for tabular machine learning workflows.
+
+The core idea:
+Users upload CSV datasets, inspect data quality and ML-readiness issues, build a configurable preprocessing pipeline step by step, tune transformation parameters, preview before/after effects, and export cleaned datasets plus reproducible preprocessing configs and code.
+
+This is NOT an AutoML tool.
+This is NOT a black-box “fix my data automatically” tool.
+This is NOT an AI/LLM app.
+
+It is a practical ML preprocessing workbench for users who understand data science and want control over preprocessing strategies and parameters.
+
+The product philosophy:
+- Diagnose issues clearly.
+- Offer transformation options.
+- Let the user choose operations and parameters.
+- Preview effects before applying.
+- Apply transformations in a reproducible way.
+- Preserve leakage-safe train/test behavior.
+- Export cleaned data, config, reports, and code.
+
+============================================================
+PROJECT GOAL
+============================================================
+
+Build an MVP called DataPrep Studio.
+
+One-line product description:
+DataPrep Studio is a configurable preprocessing workbench that helps users profile tabular datasets, diagnose data quality issues, build custom preprocessing pipelines, tune transformation parameters, preview before/after effects, and export reproducible cleaned datasets for ML modeling.
+
+Primary users:
+- Data Science interns
+- Junior ML engineers
+- Students working on ML projects
+- Backend/data developers who want a structured data preparation workflow
+- Users who understand preprocessing and want control, not automatic black-box decisions
+
+Core user workflow:
+1. Create a project.
+2. Upload either:
+   - one CSV dataset, or
+   - a train.csv and test.csv pair.
+3. Select target column and problem type.
+4. Run dataset profile and ML-readiness diagnosis.
+5. Inspect issues: missingness, duplicates, mixed types, outliers, high-cardinality features, target imbalance, leakage candidates, train/test drift.
+6. Build a preprocessing pipeline manually:
+   - drop columns
+   - impute missing values
+   - add missingness indicators
+   - group rare categories
+   - encode categorical features
+   - scale numeric features
+   - clip outliers
+   - extract datetime features
+   - clean text columns
+   - remove duplicate rows
+7. Tune parameters for each step.
+8. Preview before/after effects.
+9. Apply pipeline.
+10. Export:
+   - cleaned CSV files
+   - preprocessing_config.json
+   - preprocessing_report.md
+   - generated Python preprocessing code
+11. Re-run or edit pipeline later.
+
+============================================================
+MVP NON-GOALS
+============================================================
+
+Do NOT implement:
+- AutoML
+- automatic model selection
+- hyperparameter tuning
+- full model training platform
+- LLM-based data cleaning
+- enterprise data governance
+- user authentication
+- cloud object storage
+- multi-user collaboration
+- production deployment
+- advanced resampling such as SMOTE in MVP
+- target encoding in MVP unless added as an optional advanced placeholder
+- complex data warehouse connectors
+- Parquet/SQL connectors in the first version
+
+Focus on CSV-based local MVP.
+
+============================================================
+TECH STACK
+============================================================
+
+Use this stack:
+
+Backend:
+- Python
+- FastAPI
+- SQLAlchemy
+- SQLite
+- pandas
+- NumPy
+- scikit-learn
+- scipy, only if needed for drift/statistical checks
+- python-multipart for file upload
+- pytest
+- httpx for API tests
+- pydantic / pydantic-settings
+
+Frontend:
+- React
+- Vite
+- TypeScript
+- Plain CSS or lightweight CSS modules
+- No heavy UI framework unless absolutely necessary
+- Recharts may be used for simple charts if useful
+
+Testing:
+- pytest for backend
+- frontend should at least build successfully
+- optional lightweight frontend smoke checks if practical
+
+Reports:
+- Markdown export
+- JSON export
+- generated Python code export
+
+Database:
+- SQLite for MVP
+
+Storage:
+- local filesystem under backend/app/storage
+- uploaded files and generated exports should be ignored by git except .gitkeep
+
+============================================================
+RECOMMENDED MONOREPO STRUCTURE
+============================================================
+
+Create this structure:
+
+DataPrepStudio/
+├── README.md
+├── .gitignore
+├── backend/
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── .env.example
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   ├── models.py
+│   │   ├── schemas.py
+│   │   ├── deps.py
+│   │   ├── routers/
+│   │   │   ├── __init__.py
+│   │   │   ├── health.py
+│   │   │   ├── projects.py
+│   │   │   ├── datasets.py
+│   │   │   ├── analysis.py
+│   │   │   ├── pipeline.py
+│   │   │   ├── preview.py
+│   │   │   ├── exports.py
+│   │   │   └── dashboard.py
+│   │   ├── services/
+│   │   │   ├── __init__.py
+│   │   │   ├── csv_loader.py
+│   │   │   ├── profiler.py
+│   │   │   ├── issue_detector.py
+│   │   │   ├── readiness_score.py
+│   │   │   ├── drift_detector.py
+│   │   │   ├── pipeline_engine.py
+│   │   │   ├── transformations.py
+│   │   │   ├── pipeline_preview.py
+│   │   │   ├── export_service.py
+│   │   │   ├── code_generator.py
+│   │   │   └── report_generator.py
+│   │   └── storage/
+│   │       ├── uploads/
+│   │       │   └── .gitkeep
+│   │       └── exports/
+│   │           └── .gitkeep
+│   └── tests/
+│       ├── fixtures/
+│       │   ├── clean_classification.csv
+│       │   ├── dirty_missing_values.csv
+│       │   ├── dirty_duplicates.csv
+│       │   ├── leakage_candidate.csv
+│       │   ├── imbalanced_target.csv
+│       │   ├── train_drift.csv
+│       │   ├── test_drift.csv
+│       │   ├── mixed_types.csv
+│       │   └── preprocessing_sample.csv
+│       ├── test_health.py
+│       ├── test_projects.py
+│       ├── test_dataset_upload.py
+│       ├── test_profiler.py
+│       ├── test_issue_detector.py
+│       ├── test_readiness_score.py
+│       ├── test_drift_detector.py
+│       ├── test_pipeline_engine.py
+│       ├── test_pipeline_preview.py
+│       ├── test_exports.py
+│       └── test_reports.py
+└── frontend/
+    ├── README.md
+    ├── package.json
+    ├── index.html
+    ├── vite.config.ts
+    ├── tsconfig.json
+    ├── src/
+    │   ├── main.tsx
+    │   ├── App.tsx
+    │   ├── api/
+    │   │   ├── client.ts
+    │   │   └── types.ts
+    │   ├── components/
+    │   │   ├── Button.tsx
+    │   │   ├── Card.tsx
+    │   │   ├── EmptyState.tsx
+    │   │   ├── LoadingState.tsx
+    │   │   ├── ErrorState.tsx
+    │   │   ├── ScoreCard.tsx
+    │   │   ├── IssueBadge.tsx
+    │   │   ├── ColumnProfileTable.tsx
+    │   │   ├── PipelineStepCard.tsx
+    │   │   ├── OperationEditor.tsx
+    │   │   ├── BeforeAfterPanel.tsx
+    │   │   └── ReportPreview.tsx
+    │   ├── pages/
+    │   │   ├── DashboardPage.tsx
+    │   │   ├── ProjectListPage.tsx
+    │   │   ├── ProjectCreatePage.tsx
+    │   │   ├── ProjectDetailPage.tsx
+    │   │   ├── UploadPage.tsx
+    │   │   ├── AnalysisPage.tsx
+    │   │   ├── IssuesPage.tsx
+    │   │   ├── ColumnsPage.tsx
+    │   │   ├── PipelineBuilderPage.tsx
+    │   │   ├── PreviewPage.tsx
+    │   │   └── ExportPage.tsx
+    │   ├── styles/
+    │   │   └── global.css
+    │   └── utils/
+    │       └── format.ts
+    └── public/
+        └── .gitkeep
+
+If you adjust the structure, keep it clean and explain the changes in README.
+
+============================================================
+BACKEND CONFIG
+============================================================
+
+Create backend/app/config.py using pydantic-settings.
+
+Settings:
+- APP_NAME = "DataPrep Studio"
+- DATABASE_URL = "sqlite:///./dataprep_studio.db"
+- STORAGE_DIR = "app/storage"
+- UPLOAD_DIR = "app/storage/uploads"
+- EXPORT_DIR = "app/storage/exports"
+- MAX_UPLOAD_MB = 25
+- ALLOWED_EXTENSIONS = ".csv"
+- MAX_PREVIEW_ROWS = 20
+- DEFAULT_READINESS_SCORE = 100
+- CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+No LLM API key is needed.
+
+============================================================
+DATABASE MODELS
+============================================================
+
+Use SQLAlchemy ORM.
+
+Models:
+
+Project:
+- id: int primary key
+- name: str
+- description: nullable str
+- created_at: datetime
+- updated_at: datetime
+
+DatasetFile:
+- id: int primary key
+- project_id: foreign key
+- role: str
+  - allowed: single, train, test
+- filename: str
+- storage_path: str
+- row_count: int
+- column_count: int
+- columns_json: text JSON
+- file_size_bytes: int
+- created_at: datetime
+
+AnalysisRun:
+- id: int primary key
+- project_id: foreign key
+- single_dataset_file_id: nullable foreign key
+- train_dataset_file_id: nullable foreign key
+- test_dataset_file_id: nullable foreign key
+- target_column: nullable str
+- problem_type: str
+  - allowed: classification, regression, unknown
+- readiness_score: float
+- score_breakdown_json: text JSON
+- status: str
+  - allowed: completed, error
+- created_at: datetime
+
+ColumnProfile:
+- id: int primary key
+- analysis_run_id: foreign key
+- dataset_role: str
+  - single, train, test
+- column_name: str
+- inferred_type: str
+  - numeric, categorical, boolean, datetime, text, unknown
+- missing_count: int
+- missing_rate: float
+- unique_count: int
+- cardinality_ratio: float
+- summary_json: text JSON
+- warnings_json: text JSON
+
+Issue:
+- id: int primary key
+- analysis_run_id: foreign key
+- severity: str
+  - critical, warning, info
+- category: str
+  - missingness, duplicate, type, outlier, cardinality, target, leakage, drift, split, constant, datetime, text
+- title: str
+- explanation: text
+- affected_columns_json: text JSON
+- suggested_actions_json: text JSON
+- created_at: datetime
+
+Pipeline:
+- id: int primary key
+- project_id: foreign key
+- analysis_run_id: nullable foreign key
+- name: str
+- description: nullable str
+- mode: str
+  - single, train_test
+- status: str
+  - draft, applied
+- created_at: datetime
+- updated_at: datetime
+
+PipelineStep:
+- id: int primary key
+- pipeline_id: foreign key
+- order_index: int
+- enabled: bool
+- operation_type: str
+- columns_json: text JSON
+- params_json: text JSON
+- created_at: datetime
+- updated_at: datetime
+
+PipelineRun:
+- id: int primary key
+- pipeline_id: foreign key
+- project_id: foreign key
+- status: str
+  - completed, error
+- before_summary_json: text JSON
+- after_summary_json: text JSON
+- output_paths_json: text JSON
+- report_path: nullable str
+- config_path: nullable str
+- code_path: nullable str
+- created_at: datetime
+
+TrainTestComparison:
+- id: int primary key
+- analysis_run_id: foreign key
+- project_id: foreign key
+- drift_score: float
+- summary_json: text JSON
+- created_at: datetime
+
+============================================================
+PYDANTIC SCHEMAS
+============================================================
+
+Create schemas.py with request/response models for:
+
+ProjectCreate
+ProjectUpdate
+ProjectOut
+
+DatasetFileOut
+DatasetUploadResponse
+
+AnalysisRunCreate
+AnalysisRunOut
+AnalysisOverviewOut
+ColumnProfileOut
+IssueOut
+ReadinessScoreOut
+
+PipelineCreate
+PipelineOut
+PipelineStepCreate
+PipelineStepUpdate
+PipelineStepOut
+PipelineRunOut
+
+PreviewRequest
+PreviewOut
+ExportOut
+
+DashboardOut
+
+Use explicit types.
+Avoid `Any` where reasonable.
+Use dictionaries only for JSON blobs where flexibility is needed.
+
+============================================================
+API ENDPOINTS
+============================================================
+
+Implement the following API.
+
+Health:
+GET /health
+Response:
+{
+  "status": "ok",
+  "app": "DataPrep Studio"
+}
+
+Dashboard:
+GET /dashboard
+Response:
+- project_count
+- dataset_count
+- analysis_count
+- pipeline_count
+- recent_projects
+- recent_analysis_runs
+- recent_pipeline_runs
+
+Projects:
+POST /projects
+GET /projects
+GET /projects/{project_id}
+PATCH /projects/{project_id}
+DELETE /projects/{project_id}
+
+Datasets:
+POST /projects/{project_id}/datasets/upload
+- multipart/form-data
+- For single dataset:
+  - role=single
+  - file=<csv>
+- For train/test:
+  - upload train with role=train
+  - upload test with role=test
+- Validate .csv extension.
+- Validate max size.
+- Save file.
+- Load using pandas read_csv.
+- Store row_count, column_count, column names.
+- Return DatasetFileOut.
+
+GET /projects/{project_id}/datasets
+GET /datasets/{dataset_file_id}
+GET /datasets/{dataset_file_id}/preview?limit=20
+DELETE /datasets/{dataset_file_id}
+
+Analysis:
+POST /projects/{project_id}/analysis/run
+Request:
+{
+  "target_column": "income",
+  "problem_type": "classification",
+  "mode": "single" | "train_test"
+}
+Behavior:
+- For single mode, require one dataset with role=single.
+- For train_test mode, require one train and one test dataset.
+- Run profiling.
+- Run issue detection.
+- Run readiness score.
+- If train_test mode, run train/test drift and split quality checks.
+- Persist AnalysisRun, ColumnProfile, Issue, TrainTestComparison if applicable.
+- Return AnalysisRunOut.
+
+GET /analysis/{analysis_id}
+GET /analysis/{analysis_id}/overview
+GET /analysis/{analysis_id}/columns
+GET /analysis/{analysis_id}/columns/{column_name}
+GET /analysis/{analysis_id}/issues
+GET /analysis/{analysis_id}/score
+GET /analysis/{analysis_id}/train-test-comparison
+
+Pipeline:
+POST /projects/{project_id}/pipelines
+Request:
+{
+  "name": "baseline preprocessing",
+  "description": "...",
+  "analysis_run_id": 1,
+  "mode": "single" | "train_test"
+}
+
+GET /projects/{project_id}/pipelines
+GET /pipelines/{pipeline_id}
+DELETE /pipelines/{pipeline_id}
+
+Pipeline steps:
+POST /pipelines/{pipeline_id}/steps
+PATCH /pipelines/{pipeline_id}/steps/{step_id}
+DELETE /pipelines/{pipeline_id}/steps/{step_id}
+POST /pipelines/{pipeline_id}/steps/reorder
+- Accept ordered list of step ids.
+
+POST /pipelines/{pipeline_id}/steps/{step_id}/toggle
+
+Operation metadata:
+GET /pipeline/operations
+Return available operation types, required params, optional params, defaults, and human-readable descriptions.
+The frontend uses this to render forms.
+
+Preview:
+POST /pipelines/{pipeline_id}/preview
+Behavior:
+- Apply enabled pipeline steps to a copy of dataset.
+- Do not persist cleaned data.
+- Return before/after summary, affected columns, sample rows, and step-level effects.
+- For train_test mode:
+  - fit transformations on train only
+  - transform train and test using train-fitted parameters
+  - report test-specific effects and unseen category behavior.
+
+Apply:
+POST /pipelines/{pipeline_id}/apply
+Behavior:
+- Apply enabled pipeline steps.
+- Persist cleaned CSV outputs under storage/exports.
+- Persist preprocessing_config.json.
+- Persist preprocessing_report.md.
+- Persist generated pipeline_code.py.
+- Create PipelineRun row.
+- Return PipelineRunOut.
+
+Exports:
+GET /pipeline-runs/{pipeline_run_id}
+GET /pipeline-runs/{pipeline_run_id}/download/config
+GET /pipeline-runs/{pipeline_run_id}/download/report
+GET /pipeline-runs/{pipeline_run_id}/download/code
+GET /pipeline-runs/{pipeline_run_id}/download/cleaned-single
+GET /pipeline-runs/{pipeline_run_id}/download/cleaned-train
+GET /pipeline-runs/{pipeline_run_id}/download/cleaned-test
+
+============================================================
+DATASET PROFILING REQUIREMENTS
+============================================================
+
+Implement services/profiler.py.
+
+Function:
+profile_dataframe(df: pd.DataFrame, dataset_role: str, target_column: str | None) -> list[ColumnProfileData]
+
+Infer column types:
+- numeric
+- categorical
+- boolean
+- datetime
+- text
+- unknown
+
+Heuristics:
+Numeric:
+- pandas numeric dtype
+- or string column where high percentage can parse as numeric
+
+Boolean:
+- bool dtype
+- or low-cardinality values like true/false, yes/no, 0/1
+
+Datetime:
+- datetime dtype
+- or string column where high percentage can parse as datetime
+
+Text:
+- object/string dtype with high average length
+- high uniqueness and longer values
+
+Categorical:
+- object/string with moderate/low uniqueness
+- numeric with small unique count may be categorical if target is not numeric
+
+For each column compute:
+Common:
+- missing_count
+- missing_rate
+- unique_count
+- cardinality_ratio
+- sample_values
+- warnings
+
+Numeric summary:
+- count
+- mean
+- std
+- min
+- max
+- median
+- q1
+- q3
+- iqr
+- zero_count
+- negative_count
+- skewness
+- outlier_count_iqr
+- outlier_rate_iqr
+
+Categorical summary:
+- top_values
+- rare_value_count
+- rare_value_rate
+- dominant_value
+- dominant_value_rate
+- possible_id_column
+
+Datetime summary:
+- parse_success_rate
+- min_date
+- max_date
+- invalid_date_count
+
+Text summary:
+- average_length
+- min_length
+- max_length
+- empty_string_count
+- average_word_count
+
+Target summary:
+If target column exists:
+- classification:
+  - class_counts
+  - majority_class
+  - majority_class_rate
+  - minority_class
+  - minority_class_rate
+- regression:
+  - numeric distribution
+  - outlier count
+  - skewness
+
+============================================================
+ISSUE DETECTION REQUIREMENTS
+============================================================
+
+Implement services/issue_detector.py.
+
+Function:
+detect_issues(df_or_train_df, optional_test_df, column_profiles, target_column, problem_type) -> list[IssueData]
+
+Required checks:
+
+1. Missingness:
+- critical if column missing_rate >= 0.50
+- warning if missing_rate >= 0.10
+- info if missing_rate > 0
+Suggested actions:
+- numeric imputation
+- categorical imputation
+- missingness indicator
+- drop column if very high missingness
+
+2. Duplicate rows:
+- warning if duplicate rows exist
+- critical if duplicate row rate >= 0.10
+Suggested actions:
+- remove duplicate rows
+- inspect whether duplicates are legitimate repeated observations
+
+3. Constant / near-constant columns:
+- critical if unique_count <= 1
+- warning if dominant_value_rate >= 0.95
+Suggested actions:
+- drop column
+- leave unchanged if domain reason exists
+
+4. High-cardinality categorical columns:
+- warning if unique_count > 50 and cardinality_ratio > 0.20
+- possible ID warning if cardinality_ratio > 0.90
+Suggested actions:
+- group rare categories
+- frequency encoding
+- drop ID-like column
+- keep only if domain justification exists
+
+5. Mixed type / parsing issues:
+- warning if object column has many numeric-looking values but also non-numeric values
+- warning if datetime parse rate is partial
+Suggested actions:
+- convert to numeric
+- parse datetime
+- replace invalid values with missing
+
+6. Numeric outliers:
+- warning if IQR outlier rate >= 0.05
+- info if outlier rate > 0
+Suggested actions:
+- percentile clipping
+- IQR clipping
+- log1p transform
+- leave unchanged if meaningful extreme values
+
+7. Suspicious placeholder values:
+Detect strings:
+- "N/A"
+- "NA"
+- "unknown"
+- "Unknown"
+- "?"
+- "-"
+- "--"
+- "-999"
+- "null"
+- "None"
+Suggested actions:
+- replace placeholders with missing
+- then impute or leave missing
+
+8. Target issues:
+Classification:
+- warning if majority_class_rate >= 0.80
+- critical if minority_class_rate <= 0.02
+- warning if too many target classes
+Regression:
+- warning for extreme outliers
+- warning for high skewness
+Suggested actions:
+- stratified split
+- macro-F1 / PR-AUC for imbalanced classification
+- class weights for model training
+- do not automatically resample in MVP
+
+9. Leakage candidates:
+Heuristic warnings:
+- column name includes target-like terms:
+  result, outcome, status, approved, accepted, label, target, score, final, after, post
+- column has near-perfect correlation with target
+- categorical column almost determines target
+- feature name overlaps with target column name
+Suggested actions:
+- inspect manually
+- drop from modeling if confirmed leakage
+- keep only for reporting if needed
+
+10. Train/test drift:
+Only when train and test are available.
+Numeric:
+- mean shift
+- std shift
+- quantile shift
+Categorical:
+- unseen categories in test
+- category frequency shift
+- missing categories
+Target:
+- target distribution shift
+Split:
+- duplicate rows across train/test
+- ID-like column overlapping across train/test
+Suggested actions:
+- check split strategy
+- consider stratified split
+- handle unknown categories
+- group rare categories
+- avoid leakage across entities
+
+Each issue must include:
+- severity
+- category
+- title
+- explanation
+- affected_columns
+- suggested_actions
+
+============================================================
+READINESS SCORE REQUIREMENTS
+============================================================
+
+Implement services/readiness_score.py.
+
+Function:
+compute_readiness_score(issues: list[IssueData]) -> dict
+
+Start at 100.
+Subtract based on issue severity:
+- critical: -12 each, capped by category where needed
+- warning: -5 each
+- info: -1 each
+
+Also return breakdown:
+- completeness
+- schema_consistency
+- target_quality
+- leakage_risk
+- train_test_stability
+- preprocessing_readiness
+
+The score is heuristic.
+README must clearly say:
+The readiness score is an interpretable heuristic to prioritize issues before modeling. It is not a guarantee of model performance.
+
+============================================================
+TRAIN/TEST DRIFT REQUIREMENTS
+============================================================
+
+Implement services/drift_detector.py.
+
+Function:
+compare_train_test(train_df, test_df, target_column, problem_type) -> dict
+
+Numeric columns:
+- train mean
+- test mean
+- absolute mean difference
+- relative mean difference
+- train std
+- test std
+- simple quantile shift
+- optional KS statistic if scipy is installed
+
+Categorical columns:
+- train unique count
+- test unique count
+- unseen categories in test
+- categories missing from test
+- top category frequency differences
+- simple drift severity
+
+Target distribution:
+- train target distribution
+- test target distribution
+- classification distribution shift
+
+Split quality:
+- duplicate full rows across train/test
+- likely ID columns with overlapping values
+
+Return:
+- drift_score
+- summary
+- per_column_drift
+- warnings
+
+============================================================
+PIPELINE OPERATION LIBRARY
+============================================================
+
+Implement services/transformations.py.
+
+Each operation must have:
+- operation_type
+- display_name
+- description
+- supported_column_types
+- params schema
+- default params
+- fit method
+- transform method
+- preview method if needed
+- code generation support if possible
+
+MVP operation types:
+
+1. drop_columns
+Params:
+{
+  "reason": "optional text"
+}
+Behavior:
+- Drop selected columns.
+
+2. remove_duplicate_rows
+Params:
+{
+  "subset_columns": [],
+  "keep": "first" | "last"
+}
+Behavior:
+- Remove duplicate rows from single/train.
+- For train/test mode, apply separately to train and test.
+- Warn that row removal changes target distribution.
+
+3. replace_placeholders_with_missing
+Params:
+{
+  "placeholders": ["N/A", "NA", "unknown", "?", "-", "-999", "null", "None"]
+}
+Behavior:
+- Replace listed placeholder strings with NaN.
+
+4. numeric_imputation
+Params:
+{
+  "strategy": "mean" | "median" | "constant",
+  "fill_value": 0,
+  "add_indicator": true
+}
+Behavior:
+- Fit statistic on train only in train/test mode.
+- Transform train and test using train statistic.
+- For single mode, fit on single dataset.
+
+5. categorical_imputation
+Params:
+{
+  "strategy": "most_frequent" | "constant",
+  "fill_value": "__MISSING__",
+  "add_indicator": false
+}
+Behavior:
+- Fit mode on train only in train/test mode.
+- Transform test with train-fitted value.
+
+6. add_missingness_indicator
+Params:
+{
+  "suffix": "_missing"
+}
+Behavior:
+- Add binary indicator columns for selected columns.
+
+7. rare_category_grouping
+Params:
+{
+  "min_frequency": 0.01,
+  "min_count": null,
+  "rare_label": "__RARE__",
+  "include_missing": false
+}
+Behavior:
+- Learn frequent categories from train only.
+- Replace rare/unseen categories with rare_label.
+- In train/test mode, unseen test categories become rare_label.
+
+8. one_hot_encoding
+Params:
+{
+  "drop_first": false,
+  "handle_unknown": "ignore",
+  "max_categories": null
+}
+Behavior:
+- Learn categories from train only.
+- Transform train/test consistently.
+- Produce predictable column names.
+- If too many generated columns, warn.
+
+9. ordinal_encoding
+Params:
+{
+  "categories_order": {},
+  "unknown_value": -1
+}
+Behavior:
+- Use user-provided category order if given.
+- Otherwise sorted order.
+- Unknown test categories use unknown_value.
+
+10. frequency_encoding
+Params:
+{
+  "normalize": true,
+  "unknown_value": 0
+}
+Behavior:
+- Learn category frequencies from train only.
+- Map categories to frequency.
+- Unknown categories use unknown_value.
+
+11. numeric_scaling
+Params:
+{
+  "method": "standard" | "minmax" | "robust",
+  "feature_range": [0, 1],
+  "quantile_range": [25, 75]
+}
+Behavior:
+- Fit scaler statistics on train only.
+- Apply same stats to test.
+- For MVP, pandas-based implementation is okay.
+- scikit-learn scaler use is also okay.
+
+12. outlier_clipping
+Params:
+{
+  "method": "percentile" | "iqr",
+  "lower_percentile": 1.0,
+  "upper_percentile": 99.0,
+  "iqr_multiplier": 1.5
+}
+Behavior:
+- Learn clipping thresholds from train only.
+- Apply same thresholds to test.
+- Report number of clipped values.
+
+13. log_transform
+Params:
+{
+  "method": "log1p",
+  "offset": 0,
+  "replace_original": true,
+  "new_suffix": "_log"
+}
+Behavior:
+- Apply log transform to non-negative numeric columns.
+- If negative values exist, use offset if provided or return validation error.
+
+14. datetime_extract
+Params:
+{
+  "date_format": null,
+  "features": ["year", "month", "day", "day_of_week", "is_weekend"],
+  "drop_original": true
+}
+Behavior:
+- Parse datetime.
+- Add selected date features.
+- Optionally drop original.
+
+15. text_basic_features
+Params:
+{
+  "lowercase": false,
+  "strip_whitespace": true,
+  "create_length_feature": true,
+  "create_word_count_feature": true,
+  "drop_original": false
+}
+Behavior:
+- Clean text.
+- Add length and word count features.
+
+16. rename_columns
+Params:
+{
+  "rename_map": {}
+}
+Behavior:
+- Rename selected columns.
+
+17. reorder_columns
+Params:
+{
+  "column_order": []
+}
+Behavior:
+- Reorder columns.
+
+Validation:
+- Each operation must validate supported column types.
+- Invalid params should return clear errors.
+- Do not silently ignore invalid column names.
+
+============================================================
+PIPELINE ENGINE REQUIREMENTS
+============================================================
+
+Implement services/pipeline_engine.py.
+
+Core concepts:
+- Pipeline is ordered steps.
+- Each step can be enabled/disabled.
+- Each step has operation_type, columns, params.
+- Pipeline can run in single mode or train_test mode.
+
+Functions:
+- load_pipeline(pipeline_id)
+- validate_pipeline_steps(...)
+- apply_pipeline_single(df, steps)
+- apply_pipeline_train_test(train_df, test_df, steps)
+- preview_pipeline(...)
+- summarize_before_after(...)
+- collect_step_effects(...)
+
+Critical leakage-safe rule:
+In train_test mode, all learned statistics must be fit on train only and then applied to test.
+
+Examples:
+- median imputation uses train median.
+- scaling uses train mean/std or train min/max.
+- rare category grouping learns frequent categories from train.
+- one-hot encoding learns categories from train.
+- clipping thresholds learned from train.
+- frequency encoding learns frequencies from train.
+
+Never fit preprocessing statistics on combined train+test.
+
+Pipeline output:
+- transformed single_df, or transformed train_df/test_df
+- step_effects list
+- fitted_params for reproducibility
+- before_summary
+- after_summary
+
+Step effect structure:
+{
+  "step_id": 1,
+  "operation_type": "numeric_imputation",
+  "columns": ["age"],
+  "summary": "Filled 42 missing values in age using train median 37.0",
+  "before": {...},
+  "after": {...},
+  "warnings": []
+}
+
+============================================================
+PIPELINE PREVIEW REQUIREMENTS
+============================================================
+
+Implement services/pipeline_preview.py.
+
+Preview must not persist cleaned data.
+Preview should use copies of DataFrames.
+
+Return:
+- before overview
+- after overview
+- readiness score before/after if possible
+- issue count before/after if possible
+- affected columns
+- row count before/after
+- column count before/after
+- sample transformed rows
+- step effects
+- warnings
+
+Preview endpoint must be fast enough for small/medium demo CSVs.
+Limit preview rows to MAX_PREVIEW_ROWS.
+
+============================================================
+EXPORT REQUIREMENTS
+============================================================
+
+Implement services/export_service.py.
+
+When applying a pipeline, create a new export directory:
+storage/exports/project_{project_id}/pipeline_run_{pipeline_run_id}/
+
+Export:
+- cleaned_dataset.csv for single mode
+- clean_train.csv and clean_test.csv for train_test mode
+- preprocessing_config.json
+- preprocessing_report.md
+- pipeline_code.py
+
+preprocessing_config.json must include:
+- project_id
+- pipeline_id
+- mode
+- target_column
+- problem_type
+- steps
+- fitted_params
+- generated_at
+- input file names
+- output file names
+
+preprocessing_report.md must include:
+# DataPrep Studio Preprocessing Report
+## Project
+## Dataset
+## Target / Problem Type
+## Pipeline Steps
+## Before Summary
+## After Summary
+## Step Effects
+## Warnings
+## Exported Files
+## Notes on Leakage-Safe Train/Test Processing
+
+pipeline_code.py:
+Generate readable pandas-based code that reflects selected operations.
+It does not need to perfectly cover every advanced case at first, but it must be useful and honest.
+For train/test mode, generated code must show train-only fitting behavior.
+
+Generated code should include:
+- imports
+- load CSV example
+- preprocess_single or preprocess_train_test function
+- operation comments
+- learned parameters embedded or loaded from preprocessing_config.json
+- save output CSV example
+
+============================================================
+FRONTEND REQUIREMENTS
+============================================================
+
+Build a clean React/Vite/TypeScript frontend.
+
+No need for perfect design.
+It should be readable and feel like a practical developer tool.
+
+Routes/pages:
+
+1. DashboardPage
+Shows:
+- title: DataPrep Studio
+- short product description
+- project count
+- dataset count
+- analysis count
+- pipeline count
+- recent projects
+- create project button
+
+2. ProjectListPage
+Shows:
+- projects
+- create project button
+- empty state
+
+3. ProjectCreatePage
+Form:
+- name
+- description
+Submit to backend.
+
+4. ProjectDetailPage
+Shows:
+- project name/description
+- uploaded datasets
+- recent analysis runs
+- pipelines
+- buttons:
+  - Upload Dataset
+  - Run Analysis
+  - Build Pipeline
+
+5. UploadPage
+Supports:
+- upload single CSV
+- upload train CSV
+- upload test CSV
+- role selector
+- upload status
+- dataset preview link
+
+6. AnalysisPage
+Shows:
+- readiness score
+- score breakdown
+- overview metrics
+- issue summary
+- column type counts
+- target summary
+- train/test drift summary if available
+- links to Issues, Columns, Pipeline Builder
+
+7. IssuesPage
+Shows:
+- issue list
+- filters:
+  - severity
+  - category
+  - affected column
+- issue cards with suggested actions
+- button: “Add related pipeline step” where feasible
+
+8. ColumnsPage
+Shows:
+- column profile table
+Columns:
+- name
+- inferred type
+- missing rate
+- unique count
+- cardinality ratio
+- warnings
+Click row:
+- show detailed summary panel
+
+9. PipelineBuilderPage
+This is the core UI.
+
+Show:
+- pipeline name
+- mode: single or train/test
+- ordered list of steps
+- add step button
+- operation selector
+- selected columns
+- parameter editor
+- enable/disable step
+- duplicate step
+- delete step
+- reorder step up/down
+- preview pipeline button
+- apply pipeline button
+
+For operation parameter editor:
+- Render fields based on operation metadata from GET /pipeline/operations.
+- Support text, number, boolean, select, list fields.
+- Keep it simple but functional.
+
+10. PreviewPage
+Shows:
+- before/after row count
+- before/after column count
+- before/after missing rate
+- before/after readiness score if available
+- step effects
+- warnings
+- sample transformed rows
+- apply pipeline button
+
+11. ExportPage
+Shows:
+- latest pipeline runs
+- links/buttons to download:
+  - config
+  - report
+  - code
+  - cleaned CSV files
+
+UI components:
+- Button
+- Card
+- EmptyState
+- LoadingState
+- ErrorState
+- ScoreCard
+- IssueBadge
+- ColumnProfileTable
+- PipelineStepCard
+- OperationEditor
+- BeforeAfterPanel
+- ReportPreview
+
+State management:
+- Use React state and API calls.
+- No Redux required.
+- Keep API client centralized in src/api/client.ts.
+
+API base URL:
+- default: http://127.0.0.1:8000
+- frontend README should explain how to change it if needed.
+
+============================================================
+FRONTEND TYPES
+============================================================
+
+Create src/api/types.ts.
+
+Types:
+- Project
+- DatasetFile
+- AnalysisRun
+- AnalysisOverview
+- ColumnProfile
+- Issue
+- Pipeline
+- PipelineStep
+- PipelineRun
+- OperationMetadata
+- PreviewResult
+- Dashboard
+
+Avoid `any` where reasonable.
+
+============================================================
+BACKEND TESTING REQUIREMENTS
+============================================================
+
+Create deterministic pytest tests.
+
+Tests must use:
+- temporary SQLite database
+- temporary upload/export directory
+- fixture CSVs
+- no external services
+
+Test cases:
+
+test_health.py:
+- GET /health returns ok.
+
+test_projects.py:
+- create project
+- list projects
+- get project
+- update project
+- delete project
+
+test_dataset_upload.py:
+- upload CSV
+- reject non-CSV
+- reject invalid project
+- preview dataset
+- row/column counts saved
+
+test_profiler.py:
+- numeric profile
+- categorical profile
+- datetime profile
+- text profile
+- missing rate
+- unique count
+
+test_issue_detector.py:
+- missingness issue
+- duplicate issue
+- high-cardinality issue
+- target imbalance issue
+- leakage candidate issue
+- outlier issue
+- placeholder issue
+
+test_readiness_score.py:
+- score decreases with critical/warning issues
+- breakdown exists
+- deterministic result
+
+test_drift_detector.py:
+- train/test drift detects unseen categories
+- train/test target distribution comparison
+- duplicate row overlap across train/test
+
+test_pipeline_engine.py:
+- drop columns
+- numeric imputation
+- categorical imputation
+- missingness indicator
+- rare category grouping
+- one-hot encoding
+- scaling
+- outlier clipping
+- train/test mode fits on train only
+
+test_pipeline_preview.py:
+- preview does not persist cleaned file
+- preview returns before/after summary
+- step effects exist
+
+test_exports.py:
+- apply pipeline creates cleaned CSV
+- config JSON exists
+- report markdown exists
+- generated code exists
+
+test_reports.py:
+- markdown report includes key sections
+- JSON config includes steps and fitted params
+
+============================================================
+FIXTURE DATA REQUIREMENTS
+============================================================
+
+Create small fixture CSVs under backend/tests/fixtures.
+
+1. clean_classification.csv
+- simple clean dataset
+- target column
+- no major issues
+
+2. dirty_missing_values.csv
+- numeric missing
+- categorical missing
+- placeholder values
+- target column
+
+3. dirty_duplicates.csv
+- duplicate rows
+- near-constant column
+
+4. leakage_candidate.csv
+- target column
+- suspicious feature names like outcome_status, final_result, approved_after_review
+- near-perfect leakage column
+
+5. imbalanced_target.csv
+- classification target with strong imbalance
+
+6. train_drift.csv and test_drift.csv
+- train/test pair
+- unseen categories in test
+- numeric distribution shift
+- target distribution shift
+
+7. mixed_types.csv
+- numeric-looking strings
+- invalid numeric values
+- date-like column with invalid dates
+
+8. preprocessing_sample.csv
+- designed to exercise multiple pipeline operations
+
+Keep fixtures small enough for tests to run quickly.
+
+============================================================
+README REQUIREMENTS
+============================================================
+
+Root README.md:
+
+Title:
+DataPrep Studio — Configurable ML Preprocessing Workbench
+
+Sections:
+1. Overview
+2. Why This Project Exists
+3. Core Workflow
+4. Features
+5. Architecture
+6. Tech Stack
+7. Project Structure
+8. Backend Setup
+9. Frontend Setup
+10. Demo Flow
+11. Testing
+12. Exported Artifacts
+13. Design Philosophy
+14. Known Limitations
+15. Future Improvements
+16. Resume Bullet Draft
+
+Important README language:
+- This is not AutoML.
+- This tool is for users who want control over preprocessing.
+- Recommendations are heuristic and should be reviewed by the user.
+- Readiness score is a prioritization heuristic, not a guarantee of model performance.
+- In train/test mode, preprocessing statistics are fit on train only and applied to test to reduce leakage risk.
+
+Resume Bullet Draft:
+
+DataPrep Studio — Configurable ML Preprocessing Workbench | Python, FastAPI, React, pandas, scikit-learn
+
+- Built a configurable preprocessing dashboard that lets users diagnose tabular datasets, select transformation strategies, tune parameters, and preview before/after effects before modeling.
+- Implemented leakage-safe train/test preprocessing for imputation, encoding, scaling, rare-category grouping, duplicate handling, outlier clipping, and feature cleanup.
+- Exported cleaned datasets, preprocessing configs, markdown reports, and reproducible pandas/sklearn-style pipeline code, with pytest coverage for data-quality checks and transformation rules.
+
+Backend README:
+- setup
+- run backend
+- run tests
+- endpoint summary
+- storage notes
+
+Frontend README:
+- setup
+- run frontend
+- API base URL
+- build command
+- demo flow
+
+============================================================
+COMMANDS
+============================================================
+
+Backend setup:
+
+cd backend
+python -m venv .venv
+
+Windows:
+.venv\Scripts\activate
+
+macOS/Linux:
+source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+Backend tests:
+
+cd backend
+pytest -q
+
+Frontend setup:
+
+cd frontend
+npm install
+npm run dev
+
+Frontend build:
+
+cd frontend
+npm run build
+
+============================================================
+GITIGNORE REQUIREMENTS
+============================================================
+
+Create .gitignore with:
+- Python venv
+- __pycache__
+- .pytest_cache
+- SQLite database files
+- uploaded files
+- exported files
+- .env
+- node_modules
+- frontend dist
+- OS temp files
+
+Keep .gitkeep files in storage folders.
+
+============================================================
+IMPLEMENTATION ORDER
+============================================================
+
+Implement in this order:
+
+1. Create monorepo structure.
+2. Implement backend config/database/models/schemas.
+3. Implement health endpoint.
+4. Implement project CRUD.
+5. Implement CSV upload and preview.
+6. Implement profiler.
+7. Implement issue detector.
+8. Implement readiness score.
+9. Implement train/test drift detector.
+10. Implement analysis endpoints.
+11. Implement operation metadata endpoint.
+12. Implement pipeline CRUD and pipeline step CRUD.
+13. Implement transformation operations.
+14. Implement pipeline preview.
+15. Implement pipeline apply.
+16. Implement exports: config, report, generated code, cleaned CSV.
+17. Add backend tests and ensure pytest -q passes.
+18. Implement frontend API client and types.
+19. Implement dashboard/project/upload/analysis/issues/columns pages.
+20. Implement pipeline builder UI.
+21. Implement preview and export UI.
+22. Write README files.
+23. Run backend tests and frontend build.
+24. Provide final summary and exact run commands.
+
+============================================================
+QUALITY REQUIREMENTS
+============================================================
+
+- Prefer working MVP over over-engineering.
+- Use clear Python type hints.
+- Use Pydantic schemas for API boundaries.
+- Avoid hidden magic.
+- Make errors clear and user-readable.
+- Do not silently mutate original uploaded files.
+- Use copies when previewing transformations.
+- Keep transformation logic deterministic.
+- Avoid external network calls.
+- Keep tests fast.
+- Do not leave core MVP behavior as TODO.
+- TODO comments are acceptable only for future improvements.
+- Keep UI simple but usable.
+- Do not use LLMs or external APIs.
+
+============================================================
+IMPORTANT LEAKAGE-SAFE RULE
+============================================================
+
+In train/test mode:
+- Fit preprocessing statistics on train only.
+- Transform train using fitted train statistics.
+- Transform test using the same fitted statistics.
+- Never compute imputation values, scaling statistics, clipping thresholds, category maps, or frequency maps from combined train+test.
+- Generated reports and code should explicitly state this behavior.
+
+This rule is central to the project.
+
+============================================================
+ACCEPTANCE CRITERIA
+============================================================
+
+The MVP is complete when:
+
+Backend:
+- backend starts with uvicorn app.main:app --reload
+- GET /health works
+- project CRUD works
+- CSV upload works
+- dataset preview works
+- analysis run creates profiles/issues/readiness score
+- train/test comparison works
+- pipeline can be created
+- pipeline steps can be added/edited/reordered/toggled/deleted
+- operation metadata endpoint works
+- preview returns before/after summary
+- apply creates cleaned CSVs, config, report, and code
+- pytest -q passes
+
+Frontend:
+- frontend starts with npm run dev
+- user can create project
+- user can upload CSV
+- user can run analysis
+- user can inspect issues and columns
+- user can build a pipeline with at least several operation types
+- user can preview before/after effects
+- user can apply pipeline
+- user can access export links
+- npm run build passes
+
+Docs:
+- README explains setup, architecture, workflow, limitations, and resume bullets.
+
+============================================================
+FUTURE IMPROVEMENTS TO MENTION, NOT IMPLEMENT NOW
+============================================================
+
+Mention in README as future work:
+- baseline model before/after comparison
+- browser-level frontend tests
+- pipeline versioning
+- import saved preprocessing_config.json
+- Parquet support
+- SQL/database connectors
+- target encoding with cross-validation safeguards
+- optional resampling/class-weighting guidance
+- advanced drift metrics
+- deployment to AWS
+- interactive charts
+- managed database storage
+
+============================================================
+FINAL RESPONSE EXPECTED FROM CODEX
+============================================================
+
+When finished, summarize:
+- files created
+- backend endpoints implemented
+- frontend pages implemented
+- transformation operations implemented
+- tests added
+- how to run backend
+- how to run frontend
+- how to run tests
+- known limitations

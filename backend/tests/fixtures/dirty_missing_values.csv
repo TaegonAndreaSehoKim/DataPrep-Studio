@@ -1,0 +1,6 @@
+age,income,city,notes,target
+34,72000,Seattle,"clear row",yes
+,65000,Austin,"N/A",no
+41,,Seattle,"longer customer note with enough detail to look like text",yes
+38,999999,unknown,"?",no
+34,72000,Seattle,"clear row",yes
