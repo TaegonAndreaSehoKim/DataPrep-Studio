@@ -52,6 +52,7 @@ This file tracks the planned API surface for the MVP.
 
 - `POST /projects/{project_id}/pipelines`
 - `POST /projects/{project_id}/pipelines/from-analysis/{analysis_id}`
+- `POST /projects/{project_id}/pipelines/from-config`
 - `GET /projects/{project_id}/pipelines`
 - `GET /pipelines/{pipeline_id}`
 - `DELETE /pipelines/{pipeline_id}`

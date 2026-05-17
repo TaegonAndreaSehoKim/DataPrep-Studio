@@ -26,6 +26,7 @@ Core capabilities implemented in the MVP:
 - Convert detected issues into type-aware suggested preprocessing steps.
 - Generate a suggested preprocessing pipeline draft from an analysis run.
 - Build explicit preprocessing pipelines with user-selected operations and parameters.
+- Import an exported `preprocessing_config.json` back into an editable pipeline draft.
 - Validate pipeline steps against analysis column profiles before applying.
 - Preview before/after summaries, column-level diffs, and sample rows before writing cleaned data.
 - Apply pipelines in a reproducible way.
@@ -160,6 +161,7 @@ Built so far:
 - type-aware issue-to-pipeline-step suggestions
 - suggested pipeline draft generation from analysis issues
 - pipeline CRUD, step CRUD, reorder, toggle, operation metadata, column-aware validation, preview, apply, and exports
+- exported preprocessing config import back into editable pipeline drafts
 - generated cleaned CSV, config JSON, markdown report, and Python code artifacts
 - React/Vite frontend workflow for projects, upload, analysis, issues, columns, pipelines, preview, and exports
 - backend pytest coverage and frontend build validation
@@ -168,7 +170,7 @@ Next implementation milestones:
 
 - browser-level frontend tests
 - UI polish after manual workflow screenshots
-- richer import/export of saved preprocessing configs
+- richer import/export metadata for saved preprocessing configs
 
 ## Development Workflow
 

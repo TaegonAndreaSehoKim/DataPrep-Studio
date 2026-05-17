@@ -194,6 +194,12 @@ class SuggestedPipelineCreate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
 
 
+class PipelineConfigImportCreate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    analysis_run_id: int | None = None
+    config: dict[str, object]
+
+
 class PipelineStepCreate(BaseModel):
     operation_type: str = Field(min_length=1, max_length=80)
     columns: list[str] = Field(default_factory=list)

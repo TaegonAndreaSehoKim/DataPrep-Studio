@@ -9,6 +9,7 @@ from app.models import AnalysisRun, ColumnProfile, DatasetFile, Issue, Pipeline,
 from app.schemas import (
     OperationMetadata,
     OperationParamMetadata,
+    PipelineConfigImportCreate,
     PipelineCreate,
     PipelineOut,
     PipelineRunOut,
@@ -467,6 +468,81 @@ def create_suggested_pipeline(
             operation_type=suggestion.operation_type,
             columns_json=json.dumps(suggestion.columns),
             params_json=json.dumps(suggestion.params),
+        )
+        db.add(step)
+        steps.append(step)
+
+    db.commit()
+    db.refresh(pipeline)
+    for step in steps:
+        db.refresh(step)
+    return _pipeline_to_out(pipeline, steps)
+
+
+def _step_from_import_entry(entry: object, index: int, supported_operations: set[str]) -> dict[str, object]:
+    if not isinstance(entry, dict):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Config step {index + 1} must be an object")
+    operation_type = entry.get("operation_type")
+    if not isinstance(operation_type, str) or not operation_type:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Config step {index + 1} is missing operation_type")
+    if operation_type not in supported_operations:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported operation in config step {index + 1}: {operation_type}")
+    columns = entry.get("columns", [])
+    params = entry.get("params", {})
+    if not isinstance(columns, list):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Config step {index + 1} columns must be a list")
+    if not isinstance(params, dict):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Config step {index + 1} params must be an object")
+    return {
+        "operation_type": operation_type,
+        "columns": [str(column) for column in columns],
+        "params": params,
+    }
+
+
+@router.post("/projects/{project_id}/pipelines/from-config", response_model=PipelineOut, status_code=status.HTTP_201_CREATED)
+def create_pipeline_from_config(
+    project_id: int,
+    payload: PipelineConfigImportCreate,
+    db: Session = Depends(get_db),
+) -> PipelineOut:
+    if db.get(Project, project_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if payload.analysis_run_id is not None:
+        analysis = db.get(AnalysisRun, payload.analysis_run_id)
+        if analysis is None or analysis.project_id != project_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Analysis run does not belong to project")
+
+    config = payload.config
+    mode = config.get("mode", "single")
+    if not isinstance(mode, str) or mode not in {"single", "train_test"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Config mode must be single or train_test")
+    raw_steps = config.get("steps")
+    if not isinstance(raw_steps, list) or not raw_steps:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Config must contain at least one step")
+
+    supported_operations = {metadata.operation_type for metadata in operation_metadata()}
+    imported_steps = [_step_from_import_entry(entry, index, supported_operations) for index, entry in enumerate(raw_steps)]
+    pipeline = Pipeline(
+        project_id=project_id,
+        analysis_run_id=payload.analysis_run_id,
+        name=payload.name or "Imported preprocessing config",
+        description="Imported from a DataPrep Studio preprocessing_config.json. Review and validate before applying.",
+        mode=str(mode),
+        status="draft",
+    )
+    db.add(pipeline)
+    db.flush()
+
+    steps: list[PipelineStep] = []
+    for index, imported_step in enumerate(imported_steps):
+        step = PipelineStep(
+            pipeline_id=pipeline.id,
+            order_index=index,
+            enabled=True,
+            operation_type=str(imported_step["operation_type"]),
+            columns_json=json.dumps(imported_step["columns"]),
+            params_json=json.dumps(imported_step["params"]),
         )
         db.add(step)
         steps.append(step)

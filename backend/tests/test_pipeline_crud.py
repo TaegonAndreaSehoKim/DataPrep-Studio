@@ -182,6 +182,61 @@ def test_create_suggested_pipeline_from_analysis(client):
     assert validation.json()["valid"] is True
 
 
+def test_create_pipeline_from_exported_config(client):
+    from pathlib import Path
+
+    fixture = Path(__file__).parent / "fixtures" / "preprocessing_sample.csv"
+    project = client.post("/projects", json={"name": "Config import"}).json()
+    with fixture.open("rb") as handle:
+        upload = client.post(
+            f"/projects/{project['id']}/datasets/upload",
+            data={"role": "single"},
+            files={"file": ("preprocessing_sample.csv", handle, "text/csv")},
+        )
+    assert upload.status_code == 201
+    analysis = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    ).json()
+    config = {
+        "mode": "single",
+        "target_column": "target",
+        "problem_type": "classification",
+        "steps": [
+            {
+                "step_id": 1,
+                "operation_type": "numeric_imputation",
+                "columns": ["income"],
+                "params": {"strategy": "median"},
+                "fitted": {"income": 85000},
+            },
+            {
+                "step_id": 2,
+                "operation_type": "drop_columns",
+                "columns": ["city"],
+                "params": {},
+                "fitted": {},
+            },
+        ],
+    }
+
+    response = client.post(
+        f"/projects/{project['id']}/pipelines/from-config",
+        json={"name": "imported config", "analysis_run_id": analysis["id"], "config": config},
+    )
+
+    assert response.status_code == 201
+    pipeline = response.json()
+    assert pipeline["name"] == "imported config"
+    assert pipeline["mode"] == "single"
+    assert [step["operation_type"] for step in pipeline["steps"]] == ["numeric_imputation", "drop_columns"]
+    assert pipeline["steps"][0]["params"] == {"strategy": "median"}
+
+    validation = client.post(f"/pipelines/{pipeline['id']}/validate")
+    assert validation.status_code == 200
+    assert validation.json()["valid"] is True
+
+
 def test_pipeline_validation_tracks_column_state_between_steps(client):
     from pathlib import Path
 

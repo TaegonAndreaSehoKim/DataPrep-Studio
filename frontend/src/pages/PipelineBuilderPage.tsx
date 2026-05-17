@@ -39,8 +39,10 @@ export function PipelineBuilderPage({
   const [operationType, setOperationType] = useState("");
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [params, setParams] = useState<Record<string, unknown>>({});
+  const [configText, setConfigText] = useState("");
   const [loading, setLoading] = useState(Boolean(projectId));
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const operation = useMemo(
@@ -155,6 +157,35 @@ export function PipelineBuilderPage({
       setError(err instanceof Error ? err.message : "Failed to add step");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function importConfig(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!projectId) {
+      return;
+    }
+    setImporting(true);
+    setError(null);
+    try {
+      const parsed = JSON.parse(configText) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Config JSON must be an object.");
+      }
+      const pipeline = await apiClient.createPipelineFromConfig(projectId, {
+        name: name || "imported preprocessing config",
+        analysis_run_id: selectedAnalysis ? Number(selectedAnalysis) : null,
+        config: parsed as Record<string, unknown>
+      });
+      setSelectedPipeline(pipeline);
+      setValidation(null);
+      setConfigText("");
+      onPipelineSelected(pipeline.id);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to import config");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -288,6 +319,23 @@ export function PipelineBuilderPage({
             ) : null}
           </div>
         ) : null}
+      </Card>
+
+      <Card title="Import Config">
+        <form className="form" onSubmit={importConfig}>
+          <label>
+            <span>preprocessing_config.json</span>
+            <textarea
+              value={configText}
+              onChange={(event) => setConfigText(event.target.value)}
+              placeholder='{"mode":"single","steps":[...]}'
+            />
+            <small>Paste a DataPrep Studio exported config to create a new editable pipeline draft.</small>
+          </label>
+          <Button type="submit" variant="secondary" disabled={importing || !configText.trim()}>
+            {importing ? "Importing" : "Import Config"}
+          </Button>
+        </form>
       </Card>
 
       <Card title="Add Step">

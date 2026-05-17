@@ -130,6 +130,14 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  createPipelineFromConfig: (
+    projectId: number,
+    payload: { name?: string; analysis_run_id?: number | null; config: Record<string, unknown> }
+  ) =>
+    request<Pipeline>(`/projects/${projectId}/pipelines/from-config`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   getPipeline: (pipelineId: number) => request<Pipeline>(`/pipelines/${pipelineId}`),
   validatePipeline: (pipelineId: number) =>
     request<PipelineValidation>(`/pipelines/${pipelineId}/validate`, {
