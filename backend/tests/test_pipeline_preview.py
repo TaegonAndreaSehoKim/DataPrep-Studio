@@ -40,9 +40,20 @@ def test_pipeline_preview_returns_before_after_and_step_effects(client):
     body = response.json()
     assert body["before_summary"]["column_count"] == 4
     assert body["after_summary"]["column_count"] == 3
+    assert len(body["before_sample_rows"]) == 2
     assert len(body["sample_rows"]) == 2
+    assert body["before_sample_rows"][1]["income"] is None
+    assert body["sample_rows"][1]["income"] is not None
+    assert "city" in body["before_sample_rows"][0]
+    assert "city" not in body["sample_rows"][0]
     assert len(body["step_effects"]) == 2
     assert body["affected_columns"] == ["city", "income"]
+    diffs = {diff["column_name"]: diff for diff in body["column_diffs"]}
+    assert diffs["income"]["status"] == "changed"
+    assert diffs["income"]["before_missing_count"] == 1
+    assert diffs["income"]["after_missing_count"] == 0
+    assert diffs["income"]["changed_sample_count"] == 1
+    assert diffs["city"]["status"] == "removed"
 
     charts = client.post(f"/pipelines/{pipeline['id']}/preview/charts", json={"limit": 2})
     assert charts.status_code == 200

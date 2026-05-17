@@ -10,6 +10,10 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
 
+function formatCount(value: number | null) {
+  return value === null ? "-" : value;
+}
+
 export function PreviewPage({
   pipelineId,
   onApplied
@@ -78,6 +82,40 @@ export function PreviewPage({
         <BeforeAfterPanel before={preview.before_summary} after={preview.after_summary} />
       </Card>
       <AnalysisCharts charts={charts} />
+      <Card title="Column Changes">
+        {preview.column_diffs.length ? (
+          <div className="preview-table-wrap no-margin">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Column</th>
+                  <th>Status</th>
+                  <th>Missing Before</th>
+                  <th>Missing After</th>
+                  <th>Changed Sample Rows</th>
+                  <th>Type Before</th>
+                  <th>Type After</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.column_diffs.map((diff) => (
+                  <tr key={diff.column_name}>
+                    <td>{diff.column_name}</td>
+                    <td><span className={`diff-status diff-${diff.status}`}>{diff.status}</span></td>
+                    <td>{formatCount(diff.before_missing_count)}</td>
+                    <td>{formatCount(diff.after_missing_count)}</td>
+                    <td>{formatCount(diff.changed_sample_count)}</td>
+                    <td>{diff.before_dtype ?? "-"}</td>
+                    <td>{diff.after_dtype ?? "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState title="No column changes" message="Preview did not report column-level changes." />
+        )}
+      </Card>
       <Card title="Step Effects">
         {preview.step_effects.length ? (
           <div className="list">
@@ -93,7 +131,16 @@ export function PreviewPage({
         )}
       </Card>
       <Card title="Sample Rows">
-        <pre>{JSON.stringify(preview.sample_rows, null, 2)}</pre>
+        <div className="summary-grid">
+          <div>
+            <h3>Before</h3>
+            <pre>{JSON.stringify(preview.before_sample_rows, null, 2)}</pre>
+          </div>
+          <div>
+            <h3>After</h3>
+            <pre>{JSON.stringify(preview.sample_rows, null, 2)}</pre>
+          </div>
+        </div>
       </Card>
     </div>
   );

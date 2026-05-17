@@ -495,11 +495,45 @@ textarea {
   margin-top: 18px;
 }
 
+.preview-table-wrap.no-margin {
+  margin-top: 0;
+}
+
 .data-table th,
 .data-table td {
   padding: 10px;
   border-bottom: 1px solid #e1e7f0;
   text-align: left;
+}
+
+.diff-status {
+  display: inline-flex;
+  min-width: 78px;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.diff-changed {
+  background: #fff4db;
+  color: #8a5a00;
+}
+
+.diff-added {
+  background: #e8f6ee;
+  color: #1f6f4a;
+}
+
+.diff-removed {
+  background: #ffe5e5;
+  color: #a61b1b;
+}
+
+.diff-unchanged {
+  background: #eef2f7;
+  color: #4d5e73;
 }
 
 .issue-badge {

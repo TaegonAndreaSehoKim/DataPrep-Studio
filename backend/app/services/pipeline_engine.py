@@ -48,6 +48,78 @@ def readiness_for_dataframe(df: pd.DataFrame, target_column: str | None, problem
     return {"score": score, "breakdown": breakdown, "issue_count": len(issues)}
 
 
+def _sample_rows(df: pd.DataFrame, limit: int) -> list[dict[str, Any]]:
+    sample = df.head(limit)
+    return sample.astype(object).where(sample.notna(), None).to_dict(orient="records")
+
+
+def _values_differ(before_value: Any, after_value: Any) -> bool:
+    before_missing = bool(pd.isna(before_value))
+    after_missing = bool(pd.isna(after_value))
+    if before_missing or after_missing:
+        return before_missing != after_missing
+    return bool(before_value != after_value)
+
+
+def _changed_sample_count(before: pd.Series, after: pd.Series) -> int:
+    shared_index = before.index.intersection(after.index)[:1000]
+    if len(shared_index) == 0:
+        return 0
+    return int(
+        sum(
+            _values_differ(before.loc[index], after.loc[index])
+            for index in shared_index
+        )
+    )
+
+
+def _column_diffs(before_df: pd.DataFrame, after_df: pd.DataFrame) -> list[dict[str, Any]]:
+    diffs: list[dict[str, Any]] = []
+    before_columns = [str(column) for column in before_df.columns]
+    after_columns = [str(column) for column in after_df.columns]
+    ordered_columns = before_columns + [column for column in after_columns if column not in before_columns]
+
+    for column in ordered_columns:
+        before_exists = column in before_df.columns
+        after_exists = column in after_df.columns
+        before_missing_count = int(before_df[column].isna().sum()) if before_exists else None
+        after_missing_count = int(after_df[column].isna().sum()) if after_exists else None
+        before_non_null_count = int(before_df[column].notna().sum()) if before_exists else None
+        after_non_null_count = int(after_df[column].notna().sum()) if after_exists else None
+        before_dtype = str(before_df[column].dtype) if before_exists else None
+        after_dtype = str(after_df[column].dtype) if after_exists else None
+        changed_sample_count: int | None = None
+
+        if before_exists and after_exists:
+            changed_sample_count = _changed_sample_count(before_df[column], after_df[column])
+            status = "changed" if (
+                before_missing_count != after_missing_count
+                or before_dtype != after_dtype
+                or changed_sample_count > 0
+            ) else "unchanged"
+        elif before_exists:
+            status = "removed"
+        else:
+            status = "added"
+
+        diffs.append(
+            {
+                "column_name": column,
+                "status": status,
+                "before_missing_count": before_missing_count,
+                "after_missing_count": after_missing_count,
+                "before_non_null_count": before_non_null_count,
+                "after_non_null_count": after_non_null_count,
+                "changed_sample_count": changed_sample_count,
+                "before_dtype": before_dtype,
+                "after_dtype": after_dtype,
+            }
+        )
+
+    status_rank = {"changed": 0, "added": 1, "removed": 2, "unchanged": 3}
+    return sorted(diffs, key=lambda item: (status_rank[str(item["status"])], str(item["column_name"])))
+
+
 def _effect_to_dict(step: PipelineStepSpec, effect: StepEffect, fitted: dict[str, Any]) -> dict[str, Any]:
     return {
         "step_id": step.id,
@@ -118,12 +190,13 @@ def preview_single(
     after_summary = summarize_dataframe(result.single_df)
     after_summary["readiness"] = readiness_for_dataframe(result.single_df, target_column, problem_type)
     affected = sorted({column for step in steps if step.enabled for column in step.columns})
-    sample = result.single_df.head(limit).astype(object).where(result.single_df.head(limit).notna(), None).to_dict(orient="records")
     return {
         "before_summary": before_summary,
         "after_summary": after_summary,
         "affected_columns": affected,
-        "sample_rows": sample,
+        "before_sample_rows": _sample_rows(df, limit),
+        "sample_rows": _sample_rows(result.single_df, limit),
+        "column_diffs": _column_diffs(df, result.single_df),
         "step_effects": result.step_effects or [],
         "warnings": result.warnings or [],
         "fitted_params": result.fitted_params or [],
@@ -144,12 +217,13 @@ def preview_train_test(
     after_summary = {"train": summarize_dataframe(result.train_df), "test": summarize_dataframe(result.test_df)}
     after_summary["train"]["readiness"] = readiness_for_dataframe(result.train_df, target_column, problem_type)
     affected = sorted({column for step in steps if step.enabled for column in step.columns})
-    sample = result.train_df.head(limit).astype(object).where(result.train_df.head(limit).notna(), None).to_dict(orient="records")
     return {
         "before_summary": before_summary,
         "after_summary": after_summary,
         "affected_columns": affected,
-        "sample_rows": sample,
+        "before_sample_rows": _sample_rows(train_df, limit),
+        "sample_rows": _sample_rows(result.train_df, limit),
+        "column_diffs": _column_diffs(train_df, result.train_df),
         "step_effects": result.step_effects or [],
         "warnings": ["Train/test mode fits preprocessing parameters on train only."] + (result.warnings or []),
         "fitted_params": result.fitted_params or [],

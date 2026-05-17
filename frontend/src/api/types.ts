@@ -188,11 +188,25 @@ export interface OperationMetadata {
   params: OperationParamMetadata[];
 }
 
+export interface ColumnDiff {
+  column_name: string;
+  status: "added" | "removed" | "changed" | "unchanged";
+  before_missing_count: number | null;
+  after_missing_count: number | null;
+  before_non_null_count: number | null;
+  after_non_null_count: number | null;
+  changed_sample_count: number | null;
+  before_dtype: string | null;
+  after_dtype: string | null;
+}
+
 export interface PreviewResult {
   before_summary: Record<string, unknown>;
   after_summary: Record<string, unknown>;
   affected_columns: string[];
+  before_sample_rows: Record<string, unknown>[];
   sample_rows: Record<string, unknown>[];
+  column_diffs: ColumnDiff[];
   step_effects: Record<string, unknown>[];
   warnings: string[];
   fitted_params: Record<string, unknown>[];

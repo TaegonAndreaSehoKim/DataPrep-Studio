@@ -68,6 +68,7 @@ This file tracks the planned API surface for the MVP.
 ## Preview and Apply
 
 - `POST /pipelines/{pipeline_id}/preview`
+  - Returns before/after summaries, affected columns, before/after sample rows, column-level diffs, step effects, warnings, and fitted parameter metadata.
 - `POST /pipelines/{pipeline_id}/preview/charts`
 - `POST /pipelines/{pipeline_id}/apply`
 

@@ -260,11 +260,25 @@ class PreviewRequest(BaseModel):
     limit: int | None = None
 
 
+class ColumnDiffOut(BaseModel):
+    column_name: str
+    status: Literal["added", "removed", "changed", "unchanged"]
+    before_missing_count: int | None = None
+    after_missing_count: int | None = None
+    before_non_null_count: int | None = None
+    after_non_null_count: int | None = None
+    changed_sample_count: int | None = None
+    before_dtype: str | None = None
+    after_dtype: str | None = None
+
+
 class PreviewOut(BaseModel):
     before_summary: dict[str, object]
     after_summary: dict[str, object]
     affected_columns: list[str]
+    before_sample_rows: list[dict[str, object]] = Field(default_factory=list)
     sample_rows: list[dict[str, object]]
+    column_diffs: list[ColumnDiffOut] = Field(default_factory=list)
     step_effects: list[dict[str, object]]
     warnings: list[str]
     fitted_params: list[dict[str, object]] = Field(default_factory=list)

@@ -27,7 +27,7 @@ Core capabilities implemented in the MVP:
 - Generate a suggested preprocessing pipeline draft from an analysis run.
 - Build explicit preprocessing pipelines with user-selected operations and parameters.
 - Validate pipeline steps against analysis column profiles before applying.
-- Preview before/after effects before writing cleaned data.
+- Preview before/after summaries, column-level diffs, and sample rows before writing cleaned data.
 - Apply pipelines in a reproducible way.
 - Export cleaned CSVs, `preprocessing_config.json`, `preprocessing_report.md`, and generated Python preprocessing code.
 
