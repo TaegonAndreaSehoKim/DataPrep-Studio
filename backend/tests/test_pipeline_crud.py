@@ -180,3 +180,76 @@ def test_create_suggested_pipeline_from_analysis(client):
     validation = client.post(f"/pipelines/{pipeline['id']}/validate")
     assert validation.status_code == 200
     assert validation.json()["valid"] is True
+
+
+def test_pipeline_validation_tracks_column_state_between_steps(client):
+    from pathlib import Path
+
+    fixture = Path(__file__).parent / "fixtures" / "preprocessing_sample.csv"
+    project = client.post("/projects", json={"name": "Column state validation"}).json()
+    with fixture.open("rb") as handle:
+        upload = client.post(
+            f"/projects/{project['id']}/datasets/upload",
+            data={"role": "single"},
+            files={"file": ("preprocessing_sample.csv", handle, "text/csv")},
+        )
+    assert upload.status_code == 201
+    analysis = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    ).json()
+    pipeline = client.post(
+        f"/projects/{project['id']}/pipelines",
+        json={"name": "bad dependency", "analysis_run_id": analysis["id"], "mode": "single"},
+    ).json()
+
+    client.post(
+        f"/pipelines/{pipeline['id']}/steps",
+        json={"operation_type": "drop_columns", "columns": ["income"], "params": {}},
+    )
+    client.post(
+        f"/pipelines/{pipeline['id']}/steps",
+        json={"operation_type": "numeric_imputation", "columns": ["income"], "params": {"strategy": "median"}},
+    )
+
+    validation = client.post(f"/pipelines/{pipeline['id']}/validate")
+
+    assert validation.status_code == 200
+    assert validation.json()["valid"] is False
+    assert any("income" in issue["message"] and "not available" in issue["message"] for issue in validation.json()["issues"])
+
+
+def test_pipeline_validation_tracks_rename_state(client):
+    from pathlib import Path
+
+    fixture = Path(__file__).parent / "fixtures" / "preprocessing_sample.csv"
+    project = client.post("/projects", json={"name": "Rename state validation"}).json()
+    with fixture.open("rb") as handle:
+        upload = client.post(
+            f"/projects/{project['id']}/datasets/upload",
+            data={"role": "single"},
+            files={"file": ("preprocessing_sample.csv", handle, "text/csv")},
+        )
+    assert upload.status_code == 201
+    analysis = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    ).json()
+    pipeline = client.post(
+        f"/projects/{project['id']}/pipelines",
+        json={"name": "rename dependency", "analysis_run_id": analysis["id"], "mode": "single"},
+    ).json()
+
+    client.post(
+        f"/pipelines/{pipeline['id']}/steps",
+        json={"operation_type": "rename_columns", "columns": [], "params": {"rename_map": {"income": "annual_income"}}},
+    )
+    client.post(
+        f"/pipelines/{pipeline['id']}/steps",
+        json={"operation_type": "numeric_imputation", "columns": ["annual_income"], "params": {"strategy": "median"}},
+    )
+
+    validation = client.post(f"/pipelines/{pipeline['id']}/validate")
+
+    assert validation.status_code == 200
+    assert validation.json()["valid"] is True

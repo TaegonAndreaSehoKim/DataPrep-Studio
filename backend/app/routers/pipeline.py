@@ -183,7 +183,7 @@ def operation_metadata() -> list[OperationMetadata]:
 def _validate_step_against_metadata(
     step: PipelineStep,
     metadata_by_type: dict[str, OperationMetadata],
-    profiles_by_name: dict[str, ColumnProfile],
+    current_column_types: dict[str, str],
 ) -> list[PipelineValidationIssue]:
     issues: list[PipelineValidationIssue] = []
     columns = _json_loads(step.columns_json, [])
@@ -220,20 +220,20 @@ def _validate_step_against_metadata(
             )
         )
 
-    if profiles_by_name and isinstance(columns, list):
+    if current_column_types and isinstance(columns, list):
         supported = set(metadata.supported_column_types)
         for column in columns:
-            if column not in profiles_by_name:
+            if column not in current_column_types:
                 issues.append(
                     PipelineValidationIssue(
                         severity="error",
                         step_id=step.id,
                         operation_type=step.operation_type,
-                        message=f"Column does not exist in analysis profile: {column}",
+                        message=f"Column is not available at this step: {column}",
                     )
                 )
                 continue
-            inferred_type = profiles_by_name[column].inferred_type
+            inferred_type = current_column_types[column]
             if "any" not in supported and inferred_type not in supported:
                 issues.append(
                     PipelineValidationIssue(
@@ -276,7 +276,135 @@ def _validate_step_against_metadata(
                 )
             )
 
+    issues.extend(_validate_operation_dependencies(step, columns, params, current_column_types))
     return issues
+
+
+def _validate_operation_dependencies(
+    step: PipelineStep,
+    columns: list[str],
+    params: dict[str, object],
+    current_column_types: dict[str, str],
+) -> list[PipelineValidationIssue]:
+    issues: list[PipelineValidationIssue] = []
+    if not current_column_types:
+        return issues
+
+    if step.operation_type == "remove_duplicate_rows":
+        subset = params.get("subset") or columns
+        if subset and isinstance(subset, list):
+            for column in [str(item) for item in subset]:
+                if column not in current_column_types:
+                    issues.append(
+                        PipelineValidationIssue(
+                            severity="error",
+                            step_id=step.id,
+                            operation_type=step.operation_type,
+                            message=f"Duplicate subset column is not available at this step: {column}",
+                        )
+                    )
+
+    if step.operation_type == "rename_columns":
+        rename_map = params.get("rename_map", {})
+        if not isinstance(rename_map, dict):
+            return issues
+        existing_targets = set(current_column_types)
+        for source, target in rename_map.items():
+            source_name = str(source)
+            target_name = str(target)
+            if source_name not in current_column_types:
+                issues.append(
+                    PipelineValidationIssue(
+                        severity="error",
+                        step_id=step.id,
+                        operation_type=step.operation_type,
+                        message=f"Rename source column is not available at this step: {source_name}",
+                    )
+                )
+            if target_name in existing_targets and target_name not in rename_map:
+                issues.append(
+                    PipelineValidationIssue(
+                        severity="error",
+                        step_id=step.id,
+                        operation_type=step.operation_type,
+                        message=f"Rename target already exists: {target_name}",
+                    )
+                )
+
+    if step.operation_type == "reorder_columns":
+        order = params.get("column_order", [])
+        if not isinstance(order, list):
+            return issues
+        for column in [str(item) for item in order]:
+            if column not in current_column_types:
+                issues.append(
+                    PipelineValidationIssue(
+                        severity="error",
+                        step_id=step.id,
+                        operation_type=step.operation_type,
+                        message=f"Reorder column is not available at this step: {column}",
+                    )
+                )
+    return issues
+
+
+def _apply_step_column_state(step: PipelineStep, current_column_types: dict[str, str]) -> dict[str, str]:
+    next_types = dict(current_column_types)
+    columns = _json_loads(step.columns_json, [])
+    params = _json_loads(step.params_json, {})
+    if not isinstance(columns, list) or not isinstance(params, dict):
+        return next_types
+    columns = [str(column) for column in columns if str(column) in next_types]
+
+    if step.operation_type == "drop_columns":
+        for column in columns:
+            next_types.pop(column, None)
+    elif step.operation_type == "add_missing_indicator":
+        suffix = str(params.get("suffix", "_was_missing"))
+        for column in columns:
+            next_types[f"{column}{suffix}"] = "numeric"
+    elif step.operation_type == "one_hot_encoding":
+        for column in columns:
+            next_types.pop(column, None)
+            max_categories = params.get("max_categories")
+            if isinstance(max_categories, int) and max_categories > 0:
+                for index in range(max_categories):
+                    next_types[f"{column}_category_{index + 1}"] = "numeric"
+    elif step.operation_type in {"ordinal_encoding", "frequency_encoding"}:
+        for column in columns:
+            next_types[column] = "numeric"
+    elif step.operation_type == "log_transform":
+        if not bool(params.get("replace_original", True)):
+            suffix = str(params.get("new_suffix", "_log"))
+            for column in columns:
+                next_types[f"{column}{suffix}"] = "numeric"
+    elif step.operation_type == "datetime_extract":
+        features = params.get("features", ["year", "month", "day", "day_of_week", "is_weekend"])
+        if not isinstance(features, list):
+            features = []
+        for column in columns:
+            for feature in [str(item) for item in features]:
+                next_types[f"{column}_{feature}"] = "numeric"
+            if bool(params.get("drop_original", True)):
+                next_types.pop(column, None)
+    elif step.operation_type == "text_basic_features":
+        for column in columns:
+            if bool(params.get("create_length_feature", True)):
+                next_types[f"{column}_length"] = "numeric"
+            if bool(params.get("create_word_count_feature", True)):
+                next_types[f"{column}_word_count"] = "numeric"
+            if bool(params.get("drop_original", False)):
+                next_types.pop(column, None)
+    elif step.operation_type == "rename_columns":
+        rename_map = params.get("rename_map", {})
+        if isinstance(rename_map, dict):
+            for source, target in rename_map.items():
+                source_name = str(source)
+                target_name = str(target)
+                if source_name in next_types:
+                    next_types[target_name] = next_types.pop(source_name)
+
+    return next_types
 
 
 @router.post("/projects/{project_id}/pipelines", response_model=PipelineOut, status_code=status.HTTP_201_CREATED)
@@ -376,6 +504,7 @@ def validate_pipeline(pipeline_id: int, db: Session = Depends(get_db)) -> Pipeli
     steps = db.scalars(select(PipelineStep).where(PipelineStep.pipeline_id == pipeline_id).order_by(PipelineStep.order_index)).all()
     metadata_by_type = {metadata.operation_type: metadata for metadata in operation_metadata()}
     profiles_by_name = _column_profiles_by_name(db, pipeline.analysis_run_id)
+    current_column_types = {column_name: profile.inferred_type for column_name, profile in profiles_by_name.items()}
 
     issues: list[PipelineValidationIssue] = []
     if not steps:
@@ -383,7 +512,10 @@ def validate_pipeline(pipeline_id: int, db: Session = Depends(get_db)) -> Pipeli
     for step in steps:
         if not step.enabled:
             continue
-        issues.extend(_validate_step_against_metadata(step, metadata_by_type, profiles_by_name))
+        step_issues = _validate_step_against_metadata(step, metadata_by_type, current_column_types)
+        issues.extend(step_issues)
+        if not any(issue.severity == "error" for issue in step_issues):
+            current_column_types = _apply_step_column_state(step, current_column_types)
 
     return PipelineValidationOut(valid=not any(issue.severity == "error" for issue in issues), issues=issues)
 

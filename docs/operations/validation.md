@@ -69,7 +69,7 @@ npm run dev
 8. Inspect score, issues, charts, and columns.
 9. Create a pipeline.
 10. Add transformation steps manually or from type-aware issue suggestions.
-11. Validate the pipeline and review unsupported type or missing-column warnings.
+11. Validate the pipeline and review unsupported type, missing-column, or step dependency warnings.
 12. Preview the pipeline.
 13. Apply the pipeline.
 14. Download export artifacts.
