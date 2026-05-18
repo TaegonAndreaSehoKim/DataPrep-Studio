@@ -49,7 +49,7 @@ Recommendations and readiness scores are heuristics. They help users prioritize 
 
 - Backend: Python, FastAPI, SQLAlchemy, SQLite, pandas, NumPy, scikit-learn
 - Frontend: React, Vite, TypeScript, plain CSS
-- Testing: pytest for backend, frontend production build checks
+- Testing: pytest for backend, frontend production build checks, Playwright browser smoke tests
 - Storage: local filesystem under `backend/app/storage`
 - Exports: CSV, JSON, Markdown, generated Python code
 
@@ -138,6 +138,8 @@ Frontend:
 ```powershell
 cd frontend
 npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
 More checks: [Validation and smoke checks](docs/operations/validation.md).
@@ -164,11 +166,10 @@ Built so far:
 - exported preprocessing config import back into editable pipeline drafts
 - generated cleaned CSV, config JSON, markdown report, and Python code artifacts
 - React/Vite frontend workflow for projects, upload, analysis, issues, columns, pipelines, preview, and exports
-- backend pytest coverage and frontend build validation
+- backend pytest coverage, frontend build validation, and Playwright browser smoke tests
 
 Next implementation milestones:
 
-- browser-level frontend tests
 - UI polish after manual workflow screenshots
 - richer import/export metadata for saved preprocessing configs
 
@@ -198,7 +199,7 @@ DataPrep Studio.txt       original product requirements
 - SQLite and local filesystem storage are not production persistence.
 - Readiness scores and issue recommendations are heuristic.
 - Generated Python code replays fitted preprocessing steps for the implemented MVP operations, but should still be reviewed before production use.
-- Frontend tests are not yet implemented beyond TypeScript production build validation.
+- Frontend browser coverage is limited to smoke tests and does not yet cover the full CSV upload and pipeline execution workflow.
 - No authentication, collaboration, cloud storage, or deployment path yet.
 - No model training, AutoML, or hyperparameter tuning.
 

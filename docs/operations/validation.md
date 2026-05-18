@@ -50,6 +50,14 @@ cd frontend
 npm run build
 ```
 
+Run browser-level smoke tests:
+
+```powershell
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+```
+
 Run the dev server:
 
 ```powershell
@@ -77,8 +85,9 @@ npm run dev
 Current validation checkpoint:
 
 ```text
-Backend pytest: 33 passed
+Backend pytest: 37 passed
 Frontend build: passing
+Frontend Playwright smoke: passing
 Backend smoke demo: passing
 ```
 

@@ -29,6 +29,8 @@ backend/app/storage/exports/*
 node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/playwright-report/
+frontend/test-results/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
