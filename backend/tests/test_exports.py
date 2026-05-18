@@ -49,12 +49,21 @@ def test_apply_pipeline_creates_exports_and_downloads(client):
 
     config = client.get(f"/pipeline-runs/{run['id']}/download/config")
     assert config.status_code == 200
-    assert config.json()["pipeline_id"] == pipeline["id"]
-    assert len(config.json()["steps"]) == 2
+    config_body = config.json()
+    assert config_body["schema_version"] == "dataprep-studio.config.v1"
+    assert config_body["pipeline_id"] == pipeline["id"]
+    assert config_body["pipeline_name"] == "export pipeline"
+    assert len(config_body["steps"]) == 2
+    assert config_body["metadata"]["pipeline_name"] == "export pipeline"
+    assert config_body["metadata"]["step_count"] == 2
+    assert config_body["metadata"]["operation_types"] == ["numeric_imputation", "drop_columns"]
+    assert config_body["metadata"]["before_summary"]["column_count"] == 4
+    assert config_body["metadata"]["after_summary"]["column_count"] == 3
 
     report = client.get(f"/pipeline-runs/{run['id']}/download/report")
     assert report.status_code == 200
     assert "DataPrep Studio Preprocessing Report" in report.text
+    assert "Pipeline name: export pipeline" in report.text
 
     code = client.get(f"/pipeline-runs/{run['id']}/download/code")
     assert code.status_code == 200

@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ def write_pipeline_exports(
     project_id: int,
     pipeline_id: int,
     pipeline_run_id: int,
+    pipeline_name: str,
     mode: str,
     target_column: str | None,
     problem_type: str,
@@ -51,16 +53,32 @@ def write_pipeline_exports(
         output_paths["cleaned_test"] = str(test_path)
         output_file_names.extend([train_path.name, test_path.name])
 
+    operation_types = [str(step.get("operation_type")) for step in fitted_params]
     config = {
+        "schema_version": "dataprep-studio.config.v1",
         "project_id": project_id,
         "pipeline_id": pipeline_id,
         "pipeline_run_id": pipeline_run_id,
+        "pipeline_name": pipeline_name,
         "mode": mode,
         "target_column": target_column,
         "problem_type": problem_type,
         "steps": fitted_params,
         "input_file_names": input_file_names,
         "output_file_names": output_file_names,
+        "metadata": {
+            "created_by": "DataPrep Studio",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "schema_version": "dataprep-studio.config.v1",
+            "pipeline_name": pipeline_name,
+            "step_count": len(fitted_params),
+            "operation_types": operation_types,
+            "input_file_count": len(input_file_names),
+            "output_file_count": len(output_file_names),
+            "train_only_fit": mode == "train_test",
+            "before_summary": before_summary,
+            "after_summary": after_summary,
+        },
     }
 
     config_path = export_dir / "preprocessing_config.json"

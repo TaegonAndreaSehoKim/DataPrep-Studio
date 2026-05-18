@@ -53,6 +53,7 @@ This file tracks the planned API surface for the MVP.
 - `POST /projects/{project_id}/pipelines`
 - `POST /projects/{project_id}/pipelines/from-analysis/{analysis_id}`
 - `POST /projects/{project_id}/pipelines/from-config`
+  - Accepts exported DataPrep Studio preprocessing configs. If no name is provided, `metadata.pipeline_name` is used for the imported draft when available.
 - `GET /projects/{project_id}/pipelines`
 - `GET /pipelines/{pipeline_id}`
 - `DELETE /pipelines/{pipeline_id}`
@@ -77,6 +78,7 @@ This file tracks the planned API surface for the MVP.
 
 - `GET /pipeline-runs/{pipeline_run_id}`
 - `GET /pipeline-runs/{pipeline_run_id}/download/config`
+  - Returns a versioned preprocessing config with fitted steps and metadata such as pipeline name, operation types, step count, input/output file counts, summaries, and train-only fit status.
 - `GET /pipeline-runs/{pipeline_run_id}/download/report`
 - `GET /pipeline-runs/{pipeline_run_id}/download/code`
 - `GET /pipeline-runs/{pipeline_run_id}/download/cleaned-single`

@@ -164,6 +164,7 @@ Built so far:
 - suggested pipeline draft generation from analysis issues
 - pipeline CRUD, step CRUD, reorder, toggle, operation metadata, column-aware validation, preview, apply, and exports
 - exported preprocessing config import back into editable pipeline drafts
+- versioned preprocessing config metadata for exported pipeline names, operation lists, summaries, and train-only fit notes
 - generated cleaned CSV, config JSON, markdown report, and Python code artifacts
 - React/Vite frontend workflow for projects, upload, analysis, issues, columns, pipelines, preview, and exports
 - backend pytest coverage, frontend build validation, and Playwright browser smoke tests
@@ -171,7 +172,7 @@ Built so far:
 Next implementation milestones:
 
 - UI polish after manual workflow screenshots
-- richer import/export metadata for saved preprocessing configs
+- broader browser coverage for upload, analysis, pipeline preview, and export workflows
 
 ## Development Workflow
 

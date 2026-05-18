@@ -32,7 +32,7 @@ It is designed for users who want to inspect data quality, choose transformation
 - Train/test comparison
 - Pipeline builder
 - Issue-to-step suggestions
-- Preprocessing config import
+- Preprocessing config import and export metadata
 - Pipeline validation
 - Transformation preview with before/after samples and column diffs
 - Pipeline apply

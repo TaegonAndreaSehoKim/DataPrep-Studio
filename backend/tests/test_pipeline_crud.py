@@ -199,9 +199,11 @@ def test_create_pipeline_from_exported_config(client):
         json={"target_column": "target", "problem_type": "classification", "mode": "single"},
     ).json()
     config = {
+        "schema_version": "dataprep-studio.config.v1",
         "mode": "single",
         "target_column": "target",
         "problem_type": "classification",
+        "metadata": {"pipeline_name": "metadata pipeline name"},
         "steps": [
             {
                 "step_id": 1,
@@ -222,12 +224,12 @@ def test_create_pipeline_from_exported_config(client):
 
     response = client.post(
         f"/projects/{project['id']}/pipelines/from-config",
-        json={"name": "imported config", "analysis_run_id": analysis["id"], "config": config},
+        json={"analysis_run_id": analysis["id"], "config": config},
     )
 
     assert response.status_code == 201
     pipeline = response.json()
-    assert pipeline["name"] == "imported config"
+    assert pipeline["name"] == "metadata pipeline name"
     assert pipeline["mode"] == "single"
     assert [step["operation_type"] for step in pipeline["steps"]] == ["numeric_imputation", "drop_columns"]
     assert pipeline["steps"][0]["params"] == {"strategy": "median"}
