@@ -10,7 +10,8 @@ import type {
   DatasetConfig,
   DatasetFile,
   DatasetSetupSuggestion,
-  Pipeline
+  Pipeline,
+  SuggestedPipelineStep
 } from "../api/types";
 import { AnalysisCharts } from "../components/AnalysisCharts";
 import { Button } from "../components/Button";
@@ -27,7 +28,8 @@ export function AnalysisPage({
   onOpenIssues,
   onOpenColumns,
   onBuildPipeline,
-  onPipelineCreated
+  onPipelineCreated,
+  onUseRecommendation
 }: {
   projectId: number | null;
   analysisId: number | null;
@@ -36,6 +38,7 @@ export function AnalysisPage({
   onOpenColumns: () => void;
   onBuildPipeline: (analysisId: number) => void;
   onPipelineCreated: (pipelineId: number) => void;
+  onUseRecommendation: (analysisId: number, step: SuggestedPipelineStep) => void;
 }) {
   const [datasets, setDatasets] = useState<DatasetFile[]>([]);
   const [datasetConfigs, setDatasetConfigs] = useState<DatasetConfig[]>([]);
@@ -475,9 +478,20 @@ export function AnalysisPage({
                     <small>Columns: {recommendation.affected_columns.join(", ")}</small>
                   ) : null}
                   {recommendation.suggested_step ? (
-                    <small>
-                      Suggested step: {recommendation.suggested_step.operation_type} / {recommendation.suggested_step.columns.length} columns
-                    </small>
+                    <>
+                      <small>
+                        Suggested step: {recommendation.suggested_step.operation_type} / {recommendation.suggested_step.columns.length} columns
+                      </small>
+                      <div className="toolbar no-margin">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => overview && recommendation.suggested_step && onUseRecommendation(overview.analysis_run.id, recommendation.suggested_step)}
+                        >
+                          Use in Pipeline
+                        </Button>
+                      </div>
+                    </>
                   ) : (
                     <small>Manual review recommended before preprocessing.</small>
                   )}

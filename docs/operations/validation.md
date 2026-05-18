@@ -87,7 +87,7 @@ Current validation checkpoint:
 ```text
 Backend pytest: 38 passed
 Frontend build: passing
-Frontend Playwright smoke: passing
+Frontend Playwright smoke: 3 passed
 Backend smoke demo: passing
 ```
 

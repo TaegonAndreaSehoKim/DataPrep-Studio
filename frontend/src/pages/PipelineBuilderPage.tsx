@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { apiClient } from "../api/client";
-import type { AnalysisRun, ColumnProfile, OperationMetadata, Pipeline, PipelineValidation } from "../api/types";
+import type { AnalysisRun, ColumnProfile, OperationMetadata, Pipeline, PipelineValidation, SuggestedPipelineStep } from "../api/types";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
@@ -16,6 +16,8 @@ export function PipelineBuilderPage({
   projectId,
   analysisId,
   pipelineId,
+  initialStepDraft,
+  onInitialStepDraftConsumed,
   onPipelineSelected,
   onPreview,
   onApplied
@@ -23,6 +25,8 @@ export function PipelineBuilderPage({
   projectId: number | null;
   analysisId: number | null;
   pipelineId: number | null;
+  initialStepDraft: SuggestedPipelineStep | null;
+  onInitialStepDraftConsumed: () => void;
   onPipelineSelected: (pipelineId: number) => void;
   onPreview: (pipelineId: number) => void;
   onApplied: (runId: number) => void;
@@ -40,6 +44,7 @@ export function PipelineBuilderPage({
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [params, setParams] = useState<Record<string, unknown>>({});
   const [configText, setConfigText] = useState("");
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(projectId));
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -107,9 +112,21 @@ export function PipelineBuilderPage({
   }, [selectedAnalysis]);
 
   useEffect(() => {
-    setParams(defaultParamsForOperation(operation));
-    setSelectedColumns([]);
-  }, [operation]);
+    if (!initialStepDraft || !operations.length) {
+      return;
+    }
+    const draftOperation = operations.find((item) => item.operation_type === initialStepDraft.operation_type);
+    if (!draftOperation) {
+      setError(`Recommended operation is not available: ${initialStepDraft.operation_type}`);
+      onInitialStepDraftConsumed();
+      return;
+    }
+    setOperationType(initialStepDraft.operation_type);
+    setSelectedColumns(initialStepDraft.columns);
+    setParams({ ...defaultParamsForOperation(draftOperation), ...initialStepDraft.params });
+    setDraftNotice(`Loaded recommendation: ${initialStepDraft.operation_type}. Review parameters, then add the step.`);
+    onInitialStepDraftConsumed();
+  }, [initialStepDraft, operations, onInitialStepDraftConsumed]);
 
   async function createPipeline(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -133,6 +150,14 @@ export function PipelineBuilderPage({
     } finally {
       setSaving(false);
     }
+  }
+
+  function changeOperation(nextOperationType: string) {
+    const nextOperation = operations.find((item) => item.operation_type === nextOperationType) ?? null;
+    setOperationType(nextOperationType);
+    setParams(defaultParamsForOperation(nextOperation));
+    setSelectedColumns([]);
+    setDraftNotice(null);
   }
 
   async function addStep(event: FormEvent<HTMLFormElement>) {
@@ -340,9 +365,10 @@ export function PipelineBuilderPage({
 
       <Card title="Add Step">
         <form className="form" onSubmit={addStep}>
+          {draftNotice ? <div className="state state-success">{draftNotice}</div> : null}
           <label>
             <span>Operation</span>
-            <select value={operationType} onChange={(event) => setOperationType(event.target.value)}>
+            <select value={operationType} onChange={(event) => changeOperation(event.target.value)}>
               {operations.map((item) => (
                 <option key={item.operation_type} value={item.operation_type}>{item.label}</option>
               ))}

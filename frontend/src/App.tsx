@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BarChart3, Columns3, FileUp, Home, ListChecks, PackageOpen, Play, SlidersHorizontal } from "lucide-react";
 
 import { apiClient } from "./api/client";
-import type { Dashboard, DatasetFile } from "./api/types";
+import type { Dashboard, DatasetFile, SuggestedPipelineStep } from "./api/types";
 import { Button } from "./components/Button";
 import { ErrorState } from "./components/ErrorState";
 import { LoadingState } from "./components/LoadingState";
@@ -50,6 +50,7 @@ export default function App() {
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<number | null>(null);
   const [selectedPipelineId, setSelectedPipelineId] = useState<number | null>(null);
   const [selectedPipelineRunId, setSelectedPipelineRunId] = useState<number | null>(null);
+  const [pendingStepDraft, setPendingStepDraft] = useState<SuggestedPipelineStep | null>(null);
   const [loadedDatasets, setLoadedDatasets] = useState<DatasetFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +157,12 @@ export default function App() {
             }}
             onPipelineCreated={(pipelineId) => {
               setSelectedPipelineId(pipelineId);
+              setPendingStepDraft(null);
+              setPage("pipeline");
+            }}
+            onUseRecommendation={(analysisId, step) => {
+              setSelectedAnalysisId(analysisId);
+              setPendingStepDraft(step);
               setPage("pipeline");
             }}
           />
@@ -170,6 +177,8 @@ export default function App() {
             projectId={selectedProjectId}
             analysisId={selectedAnalysisId}
             pipelineId={selectedPipelineId}
+            initialStepDraft={pendingStepDraft}
+            onInitialStepDraftConsumed={() => setPendingStepDraft(null)}
             onPipelineSelected={setSelectedPipelineId}
             onPreview={(pipelineId) => {
               setSelectedPipelineId(pipelineId);
