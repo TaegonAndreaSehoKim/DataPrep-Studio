@@ -237,6 +237,22 @@ class SuggestedPipelineStepOut(BaseModel):
     reason: str
 
 
+class PreprocessingRecommendationOut(BaseModel):
+    priority: Literal["critical", "high", "medium", "low"]
+    category: str
+    title: str
+    rationale: str
+    affected_columns: list[str] = Field(default_factory=list)
+    issue_ids: list[int] = Field(default_factory=list)
+    suggested_step: SuggestedPipelineStepOut | None = None
+
+
+class AnalysisPreprocessingRecommendationsOut(BaseModel):
+    analysis_id: int
+    recommendations: list[PreprocessingRecommendationOut] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 class PipelineValidationIssue(BaseModel):
     severity: Literal["error", "warning"]
     step_id: int | None = None

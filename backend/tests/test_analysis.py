@@ -109,6 +109,30 @@ def test_analysis_charts(client):
     assert any(row["label"] == "age" for row in body["charts"]["missingness"]["data"])
 
 
+def test_preprocessing_recommendations_highlight_actionable_findings(client):
+    project = client.post("/projects", json={"name": "Recommendation project"}).json()
+    _upload_fixture(client, project["id"])
+    analysis = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    ).json()
+
+    response = client.get(f"/analysis/{analysis['id']}/preprocessing-recommendations")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["analysis_id"] == analysis["id"]
+    assert body["recommendations"]
+    operation_types = {
+        item["suggested_step"]["operation_type"]
+        for item in body["recommendations"]
+        if item["suggested_step"] is not None
+    }
+    assert "remove_duplicate_rows" in operation_types
+    assert "numeric_imputation" in operation_types
+    assert any("advisory" in note for note in body["notes"])
+
+
 def test_analysis_applies_missing_tokens_and_type_overrides(client):
     project = client.post("/projects", json={"name": "Setup overrides"}).json()
     csv_path = FIXTURE_DIR / "user_setup_overrides.csv"

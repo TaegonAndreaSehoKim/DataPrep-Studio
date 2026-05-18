@@ -132,6 +132,22 @@ export interface SuggestedPipelineStep {
   reason: string;
 }
 
+export interface PreprocessingRecommendation {
+  priority: "critical" | "high" | "medium" | "low";
+  category: string;
+  title: string;
+  rationale: string;
+  affected_columns: string[];
+  issue_ids: number[];
+  suggested_step: SuggestedPipelineStep | null;
+}
+
+export interface AnalysisPreprocessingRecommendations {
+  analysis_id: number;
+  recommendations: PreprocessingRecommendation[];
+  notes: string[];
+}
+
 export interface PipelineValidationIssue {
   severity: "error" | "warning";
   step_id: number | null;

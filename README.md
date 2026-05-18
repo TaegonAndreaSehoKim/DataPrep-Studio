@@ -22,6 +22,7 @@ Core capabilities implemented in the MVP:
 - Save, update, and delete reusable analysis setup with missing tokens, ignored columns, and column type overrides.
 - Profile columns for type, missingness, cardinality, distributions, and warnings.
 - Detect ML-readiness issues such as missing values, duplicates, outliers, leakage candidates, high-cardinality features, target imbalance, and train/test drift.
+- Highlight analysis-specific preprocessing recommendations from notable findings.
 - Visualize analysis, column-level summaries, and pipeline preview changes with charts.
 - Convert detected issues into type-aware suggested preprocessing steps.
 - Generate a suggested preprocessing pipeline draft from an analysis run.
@@ -157,6 +158,7 @@ Built so far:
 - CSV upload, preview, listing, and deletion
 - single dataset and train/test analysis flows
 - profiling, issue detection, readiness scoring, and train/test comparison
+- analysis-level preprocessing recommendations for notable data quality findings
 - user-controlled analysis setup for saved configs, update/delete, missing value tokens, ignored columns, and column type overrides
 - dataset setup suggestion API and frontend application flow
 - analysis, column, and preview chart APIs with Recharts-based frontend visualizations

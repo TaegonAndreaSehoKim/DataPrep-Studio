@@ -4,6 +4,7 @@ import { apiClient } from "../api/client";
 import type {
   AnalysisCharts as AnalysisChartsData,
   AnalysisOverview,
+  AnalysisPreprocessingRecommendations,
   AnalysisRun,
   ColumnType,
   DatasetConfig,
@@ -42,6 +43,7 @@ export function AnalysisPage({
   const [suggestionAppliedForDatasetId, setSuggestionAppliedForDatasetId] = useState<number | null>(null);
   const [analyses, setAnalyses] = useState<AnalysisRun[]>([]);
   const [overview, setOverview] = useState<AnalysisOverview | null>(null);
+  const [preprocessingRecommendations, setPreprocessingRecommendations] = useState<AnalysisPreprocessingRecommendations | null>(null);
   const [comparison, setComparison] = useState<Record<string, unknown> | null>(null);
   const [charts, setCharts] = useState<AnalysisChartsData | null>(null);
   const [mode, setMode] = useState<Pipeline["mode"]>("single");
@@ -80,15 +82,18 @@ export function AnalysisPage({
           onAnalysisSelected(nextAnalysis.id);
           return Promise.all([
             apiClient.getAnalysisOverview(nextAnalysis.id),
+            apiClient.getAnalysisPreprocessingRecommendations(nextAnalysis.id),
             apiClient.getTrainTestComparison(nextAnalysis.id).catch(() => null),
             apiClient.getAnalysisCharts(nextAnalysis.id)
-          ]).then(([nextOverview, nextComparison, nextCharts]) => {
+          ]).then(([nextOverview, nextRecommendations, nextComparison, nextCharts]) => {
             setOverview(nextOverview);
+            setPreprocessingRecommendations(nextRecommendations);
             setComparison(nextComparison);
             setCharts(nextCharts);
           });
         }
         setOverview(null);
+        setPreprocessingRecommendations(null);
         setComparison(null);
         setCharts(null);
       })
@@ -260,12 +265,14 @@ export function AnalysisPage({
         ignored_columns: normalizedIgnoredColumns()
       });
       onAnalysisSelected(analysis.id);
-      const [nextOverview, nextComparison, nextCharts] = await Promise.all([
+      const [nextOverview, nextRecommendations, nextComparison, nextCharts] = await Promise.all([
         apiClient.getAnalysisOverview(analysis.id),
+        apiClient.getAnalysisPreprocessingRecommendations(analysis.id),
         apiClient.getTrainTestComparison(analysis.id).catch(() => null),
         apiClient.getAnalysisCharts(analysis.id)
       ]);
       setOverview(nextOverview);
+      setPreprocessingRecommendations(nextRecommendations);
       setComparison(nextComparison);
       setCharts(nextCharts);
       setAnalyses((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
@@ -456,6 +463,39 @@ export function AnalysisPage({
         )}
       </Card>
 
+      <Card title="Preprocessing Recommendations">
+        {preprocessingRecommendations?.recommendations.length ? (
+          <div className="list">
+            {preprocessingRecommendations.recommendations.map((recommendation, index) => (
+              <div className="issue-card" key={`${recommendation.category}-${index}`}>
+                <div className="issue-content">
+                  <strong>{recommendation.title}</strong>
+                  <p>{recommendation.rationale}</p>
+                  {recommendation.affected_columns.length ? (
+                    <small>Columns: {recommendation.affected_columns.join(", ")}</small>
+                  ) : null}
+                  {recommendation.suggested_step ? (
+                    <small>
+                      Suggested step: {recommendation.suggested_step.operation_type} / {recommendation.suggested_step.columns.length} columns
+                    </small>
+                  ) : (
+                    <small>Manual review recommended before preprocessing.</small>
+                  )}
+                </div>
+                <span className={`issue-badge issue-${recommendation.priority === "critical" ? "critical" : recommendation.priority === "high" ? "warning" : "info"}`}>
+                  {recommendation.priority}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No recommendations"
+            message={preprocessingRecommendations?.notes[0] ?? "Run analysis to receive preprocessing recommendations."}
+          />
+        )}
+      </Card>
+
       <AnalysisCharts charts={charts} />
 
       <Card title="Recent Analysis Runs">
@@ -469,11 +509,13 @@ export function AnalysisPage({
                   onAnalysisSelected(analysis.id);
                   Promise.all([
                     apiClient.getAnalysisOverview(analysis.id),
+                    apiClient.getAnalysisPreprocessingRecommendations(analysis.id),
                     apiClient.getTrainTestComparison(analysis.id).catch(() => null),
                     apiClient.getAnalysisCharts(analysis.id)
                   ])
-                    .then(([nextOverview, nextComparison, nextCharts]) => {
+                    .then(([nextOverview, nextRecommendations, nextComparison, nextCharts]) => {
                       setOverview(nextOverview);
+                      setPreprocessingRecommendations(nextRecommendations);
                       setComparison(nextComparison);
                       setCharts(nextCharts);
                     })

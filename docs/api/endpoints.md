@@ -44,6 +44,7 @@ This file tracks the planned API surface for the MVP.
 - `GET /analysis/{analysis_id}/columns/{column_name}`
 - `GET /analysis/{analysis_id}/columns/{column_name}/charts`
 - `GET /analysis/{analysis_id}/issues`
+- `GET /analysis/{analysis_id}/preprocessing-recommendations`
 - `GET /analysis/{analysis_id}/charts`
 - `GET /analysis/{analysis_id}/score`
 - `GET /analysis/{analysis_id}/train-test-comparison`

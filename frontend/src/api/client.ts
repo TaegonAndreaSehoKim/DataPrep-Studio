@@ -1,5 +1,6 @@
 import type {
   AnalysisOverview,
+  AnalysisPreprocessingRecommendations,
   AnalysisCharts,
   AnalysisRun,
   ColumnType,
@@ -114,6 +115,8 @@ export const apiClient = {
       body: JSON.stringify(payload)
     }),
   getAnalysisOverview: (analysisId: number) => request<AnalysisOverview>(`/analysis/${analysisId}/overview`),
+  getAnalysisPreprocessingRecommendations: (analysisId: number) =>
+    request<AnalysisPreprocessingRecommendations>(`/analysis/${analysisId}/preprocessing-recommendations`),
   getAnalysisCharts: (analysisId: number) => request<AnalysisCharts>(`/analysis/${analysisId}/charts`),
   listColumns: (analysisId: number) => request<ColumnProfile[]>(`/analysis/${analysisId}/columns`),
   listIssues: (analysisId: number) => request<Issue[]>(`/analysis/${analysisId}/issues`),

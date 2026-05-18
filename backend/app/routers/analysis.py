@@ -10,6 +10,7 @@ from app.models import AnalysisRun, ColumnProfile, DatasetConfig, DatasetFile, I
 from app.schemas import (
     AnalysisOverviewOut,
     AnalysisChartsOut,
+    AnalysisPreprocessingRecommendationsOut,
     AnalysisRunCreate,
     AnalysisRunOut,
     ColumnProfileOut,
@@ -20,6 +21,7 @@ from app.services.csv_loader import CsvValidationError, read_csv_file
 from app.services.chart_builder import build_analysis_charts, build_column_charts
 from app.services.drift_detector import detect_train_test_drift
 from app.services.issue_detector import detect_issues
+from app.services.preprocessing_advisor import build_preprocessing_recommendations
 from app.services.profiler import profile_dataframe
 from app.services.readiness_score import calculate_readiness_score
 
@@ -408,6 +410,16 @@ def list_issues(analysis_id: int, db: Session = Depends(get_db)) -> list[IssueOu
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis run not found")
     issues = db.scalars(select(Issue).where(Issue.analysis_run_id == analysis_id).order_by(Issue.id)).all()
     return [_issue_to_out(issue) for issue in issues]
+
+
+@router.get("/analysis/{analysis_id}/preprocessing-recommendations", response_model=AnalysisPreprocessingRecommendationsOut)
+def get_preprocessing_recommendations(analysis_id: int, db: Session = Depends(get_db)) -> AnalysisPreprocessingRecommendationsOut:
+    if db.get(AnalysisRun, analysis_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis run not found")
+    profiles = list(db.scalars(select(ColumnProfile).where(ColumnProfile.analysis_run_id == analysis_id)).all())
+    issues = list(db.scalars(select(Issue).where(Issue.analysis_run_id == analysis_id).order_by(Issue.id)).all())
+    recommendations, notes = build_preprocessing_recommendations(analysis_id, issues, profiles)
+    return AnalysisPreprocessingRecommendationsOut(analysis_id=analysis_id, recommendations=recommendations, notes=notes)
 
 
 @router.get("/analysis/{analysis_id}/score", response_model=ReadinessScoreOut)
