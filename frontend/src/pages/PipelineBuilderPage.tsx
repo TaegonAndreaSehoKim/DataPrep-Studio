@@ -50,6 +50,7 @@ export function PipelineBuilderPage({
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const addStepSectionRef = useRef<HTMLDivElement | null>(null);
+  const consumedDraftRef = useRef<SuggestedPipelineStep | null>(null);
 
   const operation = useMemo(
     () => operations.find((item) => item.operation_type === operationType) ?? null,
@@ -113,9 +114,17 @@ export function PipelineBuilderPage({
   }, [selectedAnalysis]);
 
   useEffect(() => {
-    if (!initialStepDraft || !operations.length) {
+    if (!initialStepDraft) {
+      consumedDraftRef.current = null;
       return;
     }
+    if (consumedDraftRef.current === initialStepDraft) {
+      return;
+    }
+    if (!operations.length) {
+      return;
+    }
+    consumedDraftRef.current = initialStepDraft;
     const draftOperation = operations.find((item) => item.operation_type === initialStepDraft.operation_type);
     if (!draftOperation) {
       setError(`Recommended operation is not available: ${initialStepDraft.operation_type}`);
@@ -126,11 +135,28 @@ export function PipelineBuilderPage({
     setSelectedColumns(initialStepDraft.columns);
     setParams({ ...defaultParamsForOperation(draftOperation), ...initialStepDraft.params });
     setDraftNotice(`Loaded recommendation: ${initialStepDraft.operation_type}. Review parameters, then add the step.`);
+    if (!selectedPipeline && projectId) {
+      setSaving(true);
+      apiClient
+        .createPipeline(projectId, {
+          name: `Recommended preprocessing #${selectedAnalysis || "draft"}`,
+          mode,
+          analysis_run_id: selectedAnalysis ? Number(selectedAnalysis) : null
+        })
+        .then((pipeline) => {
+          setSelectedPipeline(pipeline);
+          setPipelines((current) => [pipeline, ...current.filter((item) => item.id !== pipeline.id)]);
+          onPipelineSelected(pipeline.id);
+          setDraftNotice(`Created a pipeline draft and loaded recommendation: ${initialStepDraft.operation_type}. Review parameters, then add the step.`);
+        })
+        .catch((err: Error) => setError(err.message))
+        .finally(() => setSaving(false));
+    }
     window.setTimeout(() => {
       addStepSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 0);
     onInitialStepDraftConsumed();
-  }, [initialStepDraft, operations, onInitialStepDraftConsumed]);
+  }, [initialStepDraft, mode, onInitialStepDraftConsumed, onPipelineSelected, operations, projectId, selectedAnalysis, selectedPipeline]);
 
   async function createPipeline(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

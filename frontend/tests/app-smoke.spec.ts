@@ -34,7 +34,22 @@ const dataset = {
   created_at: "2026-05-17T00:00:00Z"
 };
 
+const pipeline = {
+  id: 401,
+  project_id: project.id,
+  analysis_run_id: analysis.id,
+  name: `Recommended preprocessing #${analysis.id}`,
+  description: null,
+  mode: "single",
+  status: "draft",
+  steps: [],
+  created_at: "2026-05-17T00:00:00Z",
+  updated_at: "2026-05-17T00:00:00Z"
+};
+
 async function mockApi(page: Page) {
+  let createdPipeline: typeof pipeline | null = null;
+
   await page.route(`${apiBase}/**`, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -86,7 +101,13 @@ async function mockApi(page: Page) {
     }
 
     if (method === "GET" && url.pathname === `/projects/${project.id}/pipelines`) {
-      await route.fulfill({ json: [] });
+      await route.fulfill({ json: createdPipeline ? [createdPipeline] : [] });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/projects/${project.id}/pipelines`) {
+      createdPipeline = pipeline;
+      await route.fulfill({ status: 201, json: pipeline });
       return;
     }
 
@@ -262,8 +283,9 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await page.getByRole("button", { name: "Use in Pipeline" }).click();
 
   await expect(page.getByRole("heading", { name: "Pipeline Builder" })).toBeVisible();
-  await expect(page.getByText("Loaded recommendation: numeric_imputation")).toBeVisible();
+  await expect(page.getByText("Created a pipeline draft and loaded recommendation: numeric_imputation")).toBeVisible();
   await expect(page.locator(".recommendation-focus")).toBeVisible();
   await expect(page.getByLabel("income")).toBeChecked();
   await expect(page.getByLabel("strategy")).toHaveValue("median");
+  await expect(page.getByRole("button", { name: "Add Step" })).toBeEnabled();
 });
