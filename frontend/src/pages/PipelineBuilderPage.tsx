@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { apiClient } from "../api/client";
 import type { AnalysisRun, ColumnProfile, OperationMetadata, Pipeline, PipelineValidation, SuggestedPipelineStep } from "../api/types";
@@ -49,6 +49,7 @@ export function PipelineBuilderPage({
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const addStepSectionRef = useRef<HTMLDivElement | null>(null);
 
   const operation = useMemo(
     () => operations.find((item) => item.operation_type === operationType) ?? null,
@@ -125,6 +126,9 @@ export function PipelineBuilderPage({
     setSelectedColumns(initialStepDraft.columns);
     setParams({ ...defaultParamsForOperation(draftOperation), ...initialStepDraft.params });
     setDraftNotice(`Loaded recommendation: ${initialStepDraft.operation_type}. Review parameters, then add the step.`);
+    window.setTimeout(() => {
+      addStepSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
     onInitialStepDraftConsumed();
   }, [initialStepDraft, operations, onInitialStepDraftConsumed]);
 
@@ -178,6 +182,7 @@ export function PipelineBuilderPage({
       setSelectedPipeline(updated);
       setPipelines((current) => [updated, ...current.filter((item) => item.id !== updated.id)]);
       setValidation(null);
+      setDraftNotice(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add step");
     } finally {
@@ -363,49 +368,51 @@ export function PipelineBuilderPage({
         </form>
       </Card>
 
-      <Card title="Add Step">
-        <form className="form" onSubmit={addStep}>
-          {draftNotice ? <div className="state state-success">{draftNotice}</div> : null}
-          <label>
-            <span>Operation</span>
-            <select value={operationType} onChange={(event) => changeOperation(event.target.value)}>
-              {operations.map((item) => (
-                <option key={item.operation_type} value={item.operation_type}>{item.label}</option>
-              ))}
-            </select>
-          </label>
-          <div className="column-picker">
-            <div className="field-label">Columns</div>
-            {availableColumns.length ? (
-              <div className="checkbox-grid">
-                {availableColumns.map((column) => {
-                  const isSupported = !operation || operation.supported_column_types.includes("any") || operation.supported_column_types.includes(column.type);
-                  return (
-                    <label className="checkbox-row" key={column.name}>
-                      <input
-                        type="checkbox"
-                        disabled={!isSupported}
-                        checked={selectedColumns.includes(column.name)}
-                        onChange={(event) => {
-                          setSelectedColumns((current) =>
-                            event.target.checked ? [...current, column.name] : current.filter((item) => item !== column.name)
-                          );
-                        }}
-                      />
-                      <span>{column.name}</span>
-                      <small>{isSupported ? column.type : `${column.type} not supported`}</small>
-                    </label>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="state">Select an analysis to choose columns, or add an operation that does not require columns.</div>
-            )}
-          </div>
-          <OperationEditor operation={operation} params={params} onParamsChange={setParams} />
-          <Button type="submit" disabled={saving || !selectedPipeline || (!operationAllowsEmptyColumns && selectedColumns.length === 0)}>Add Step</Button>
-        </form>
-      </Card>
+      <div ref={addStepSectionRef} className={draftNotice ? "recommendation-focus" : undefined}>
+        <Card title="Add Step">
+          <form className="form" onSubmit={addStep}>
+            {draftNotice ? <div className="state state-success">{draftNotice}</div> : null}
+            <label>
+              <span>Operation</span>
+              <select value={operationType} onChange={(event) => changeOperation(event.target.value)}>
+                {operations.map((item) => (
+                  <option key={item.operation_type} value={item.operation_type}>{item.label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="column-picker">
+              <div className="field-label">Columns</div>
+              {availableColumns.length ? (
+                <div className="checkbox-grid">
+                  {availableColumns.map((column) => {
+                    const isSupported = !operation || operation.supported_column_types.includes("any") || operation.supported_column_types.includes(column.type);
+                    return (
+                      <label className="checkbox-row" key={column.name}>
+                        <input
+                          type="checkbox"
+                          disabled={!isSupported}
+                          checked={selectedColumns.includes(column.name)}
+                          onChange={(event) => {
+                            setSelectedColumns((current) =>
+                              event.target.checked ? [...current, column.name] : current.filter((item) => item !== column.name)
+                            );
+                          }}
+                        />
+                        <span>{column.name}</span>
+                        <small>{isSupported ? column.type : `${column.type} not supported`}</small>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="state">Select an analysis to choose columns, or add an operation that does not require columns.</div>
+              )}
+            </div>
+            <OperationEditor operation={operation} params={params} onParamsChange={setParams} />
+            <Button type="submit" disabled={saving || !selectedPipeline || (!operationAllowsEmptyColumns && selectedColumns.length === 0)}>Add Step</Button>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }

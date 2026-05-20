@@ -194,6 +194,11 @@ main {
   padding: 22px;
 }
 
+.recommendation-focus .card {
+  border-color: #79c69b;
+  box-shadow: 0 0 0 3px rgba(38, 162, 105, 0.14);
+}
+
 .card h2 {
   margin-bottom: 16px;
   font-size: 20px;

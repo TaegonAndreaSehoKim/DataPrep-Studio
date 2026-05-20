@@ -263,6 +263,7 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
 
   await expect(page.getByRole("heading", { name: "Pipeline Builder" })).toBeVisible();
   await expect(page.getByText("Loaded recommendation: numeric_imputation")).toBeVisible();
+  await expect(page.locator(".recommendation-focus")).toBeVisible();
   await expect(page.getByLabel("income")).toBeChecked();
   await expect(page.getByLabel("strategy")).toHaveValue("median");
 });
