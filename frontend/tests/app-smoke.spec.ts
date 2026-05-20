@@ -80,6 +80,25 @@ const pipelineRun = {
   created_at: "2026-05-17T00:00:00Z"
 };
 
+const missingIncomeIssue = {
+  id: 501,
+  analysis_run_id: analysis.id,
+  severity: "warning",
+  category: "missingness",
+  title: "Missing values in income",
+  explanation: "income has missing values that should be handled before modeling.",
+  affected_columns: ["income"],
+  suggested_actions: ["Impute missing values"],
+  created_at: "2026-05-17T00:00:00Z"
+};
+
+const missingIncomeSuggestedStep = {
+  operation_type: "numeric_imputation",
+  columns: ["income"],
+  params: { strategy: "median" },
+  reason: "Median imputation is a conservative default for numeric missing values."
+};
+
 async function mockApi(page: Page) {
   let currentDataset = dataset;
   let currentAnalysis = analysis;
@@ -194,6 +213,23 @@ async function mockApi(page: Page) {
         updated_at: "2026-05-17T00:00:00Z"
       };
       createdPipeline = { ...createdPipeline, steps: [step] };
+      await route.fulfill({ status: 201, json: step });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/steps/from-issue/${missingIncomeIssue.id}` && createdPipeline) {
+      const step = {
+        id: 602,
+        pipeline_id: pipeline.id,
+        order_index: createdPipeline.steps.length,
+        enabled: true,
+        operation_type: missingIncomeSuggestedStep.operation_type,
+        columns: missingIncomeSuggestedStep.columns,
+        params: missingIncomeSuggestedStep.params,
+        created_at: "2026-05-17T00:00:00Z",
+        updated_at: "2026-05-17T00:00:00Z"
+      };
+      createdPipeline = { ...createdPipeline, steps: [...createdPipeline.steps, step] };
       await route.fulfill({ status: 201, json: step });
       return;
     }
@@ -372,6 +408,16 @@ async function mockApi(page: Page) {
       return;
     }
 
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/issues` || url.pathname === `/analysis/${uploadedAnalysis.id}/issues`)) {
+      await route.fulfill({ json: [{ ...missingIncomeIssue, analysis_run_id: currentAnalysis.id }] });
+      return;
+    }
+
+    if (method === "GET" && url.pathname === `/issues/${missingIncomeIssue.id}/suggested-step`) {
+      await route.fulfill({ json: missingIncomeSuggestedStep });
+      return;
+    }
+
     if (method === "GET" && (url.pathname === `/datasets/${dataset.id}/setup-suggestions` || url.pathname === `/datasets/${uploadedDataset.id}/setup-suggestions`)) {
       await route.fulfill({
         json: {
@@ -496,4 +542,25 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await expect(page.getByRole("link", { name: "Report" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Code" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Cleaned CSV" })).toBeVisible();
+});
+
+test("adds an issue suggestion to the selected pipeline", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Projects" }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("button", { name: "Analysis" }).click();
+  await page.getByRole("button", { name: "Use in Pipeline" }).click();
+  await expect(page.getByText("Created a pipeline draft and loaded recommendation: numeric_imputation")).toBeVisible();
+
+  await page.getByRole("navigation").getByRole("button", { name: "Issues" }).click();
+  await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible();
+  await expect(page.getByText(missingIncomeIssue.title)).toBeVisible();
+
+  await page.getByRole("button", { name: "Suggest Step" }).click();
+  await expect(page.getByText(missingIncomeSuggestedStep.reason)).toBeVisible();
+  await expect(page.getByText("numeric_imputation").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Add to Pipeline" }).click();
+  await expect(page.getByText("Suggested step added.")).toBeVisible();
 });
