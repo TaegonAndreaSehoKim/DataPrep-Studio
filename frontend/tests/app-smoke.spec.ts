@@ -106,8 +106,31 @@ async function mockApi(page: Page) {
     }
 
     if (method === "POST" && url.pathname === `/projects/${project.id}/pipelines`) {
-      createdPipeline = pipeline;
-      await route.fulfill({ status: 201, json: pipeline });
+      createdPipeline = { ...pipeline, steps: [] };
+      await route.fulfill({ status: 201, json: createdPipeline });
+      return;
+    }
+
+    if (method === "GET" && url.pathname === `/pipelines/${pipeline.id}` && createdPipeline) {
+      await route.fulfill({ json: createdPipeline });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/steps` && createdPipeline) {
+      const body = request.postDataJSON() as { operation_type: string; columns: string[]; params: Record<string, unknown> };
+      const step = {
+        id: 601,
+        pipeline_id: pipeline.id,
+        order_index: 0,
+        enabled: true,
+        operation_type: body.operation_type,
+        columns: body.columns,
+        params: body.params,
+        created_at: "2026-05-17T00:00:00Z",
+        updated_at: "2026-05-17T00:00:00Z"
+      };
+      createdPipeline = { ...createdPipeline, steps: [step] };
+      await route.fulfill({ status: 201, json: step });
       return;
     }
 
@@ -288,4 +311,9 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await expect(page.getByLabel("income")).toBeChecked();
   await expect(page.getByLabel("strategy")).toHaveValue("median");
   await expect(page.getByRole("button", { name: "Add Step" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Add Step" }).click();
+  const addedStep = page.locator(".pipeline-step").filter({ hasText: "numeric_imputation" });
+  await expect(addedStep).toBeVisible();
+  await expect(addedStep).toContainText("income");
 });
