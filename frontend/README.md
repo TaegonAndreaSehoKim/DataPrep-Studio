@@ -26,7 +26,7 @@ npm run build
 npm run test:e2e
 ```
 
-The Playwright suite covers dashboard/project navigation, upload-to-analysis flow, recommendation-to-pipeline step creation, preview, apply, and export navigation with mocked backend responses.
+The Playwright suite covers dashboard/project navigation, upload-to-analysis flow, upload error display, issue suggestions, column charts, recommendation-to-pipeline step creation, preview, apply, and export navigation with mocked backend responses.
 
 ## API Base URL
 

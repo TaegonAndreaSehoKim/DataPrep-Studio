@@ -79,7 +79,7 @@ cd frontend
 npm run test:e2e
 ```
 
-The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, CSV upload, analysis run, recommendation-to-pipeline, preview, apply, and export navigation.
+The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, CSV upload, upload error display, analysis run, issue suggestions, column charts, recommendation-to-pipeline, preview, apply, and export navigation.
 
 ## Local Storage
 
