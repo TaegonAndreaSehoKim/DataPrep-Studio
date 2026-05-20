@@ -134,6 +134,23 @@ async function mockApi(page: Page) {
       return;
     }
 
+    if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/validate`) {
+      await route.fulfill({
+        json: {
+          valid: true,
+          issues: [
+            {
+              severity: "warning",
+              step_id: 601,
+              operation_type: "numeric_imputation",
+              message: "Review median imputation before applying."
+            }
+          ]
+        }
+      });
+      return;
+    }
+
     if (method === "GET" && url.pathname === "/pipeline/operations") {
       await route.fulfill({
         json: [
@@ -316,4 +333,9 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   const addedStep = page.locator(".pipeline-step").filter({ hasText: "numeric_imputation" });
   await expect(addedStep).toBeVisible();
   await expect(addedStep).toContainText("income");
+
+  await page.getByRole("button", { name: "Validate" }).click();
+  await expect(page.getByText("Pipeline is valid")).toBeVisible();
+  await expect(addedStep).toContainText("1 validation issue");
+  await expect(addedStep).toContainText("Review median imputation before applying.");
 });

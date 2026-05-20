@@ -57,6 +57,16 @@ export function PipelineBuilderPage({
     [operations, operationType]
   );
   const operationAllowsEmptyColumns = operation ? OPERATIONS_ALLOW_EMPTY_COLUMNS.has(operation.operation_type) : false;
+  const validationIssuesByStep = useMemo(() => {
+    const grouped = new Map<number, PipelineValidation["issues"]>();
+    for (const issue of validation?.issues ?? []) {
+      if (issue.step_id === null) {
+        continue;
+      }
+      grouped.set(issue.step_id, [...(grouped.get(issue.step_id) ?? []), issue]);
+    }
+    return grouped;
+  }, [validation]);
 
   const availableColumns = useMemo(() => {
     const preferredRole = mode === "train_test" ? "train" : "single";
@@ -345,6 +355,7 @@ export function PipelineBuilderPage({
               <PipelineStepCard
                 key={step.id}
                 step={step}
+                validationIssues={validationIssuesByStep.get(step.id) ?? []}
                 onMoveUp={() => reorder(index, -1)}
                 onMoveDown={() => reorder(index, 1)}
                 onToggle={async () => {

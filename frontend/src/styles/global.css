@@ -338,6 +338,18 @@ main {
   padding: 5px 8px;
 }
 
+.step-validation {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.step-validation ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #5f6f86;
+}
+
 .list-row span,
 .pipeline-step p,
 .issue-card p,

@@ -16,7 +16,7 @@ It is designed for users who want to inspect data quality, choose transformation
 8. Inspect readiness score, notable preprocessing recommendations, issues, charts, and column profiles.
 9. Send an accepted preprocessing recommendation into an editable pipeline draft, or build a pipeline manually.
 10. Generate a suggested pipeline draft, import an exported preprocessing config, or configure operation parameters manually.
-11. Validate the pipeline against selected columns, profile types, and step-to-step column availability, then preview before/after summaries, column-level diffs, and sample rows.
+11. Validate the pipeline against selected columns, profile types, and step-to-step column availability, with affected-step feedback, then preview before/after summaries, column-level diffs, and sample rows.
 12. Apply the pipeline.
 13. Export cleaned data, config, report, and code.
 
