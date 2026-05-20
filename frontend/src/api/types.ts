@@ -130,6 +130,8 @@ export interface SuggestedPipelineStep {
   columns: string[];
   params: Record<string, unknown>;
   reason: string;
+  source_title?: string;
+  source_category?: string;
 }
 
 export interface PreprocessingRecommendation {

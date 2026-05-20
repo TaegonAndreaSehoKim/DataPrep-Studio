@@ -113,6 +113,10 @@ def test_issue_suggestion_and_pipeline_validation(client):
 
     step = client.post(f"/pipelines/{pipeline['id']}/steps/from-issue/{missing_issue['id']}")
     assert step.status_code == 201
+    source = step.json()["params"]["__dataprep_source"]
+    assert source["type"] == "issue"
+    assert source["issue_id"] == missing_issue["id"]
+    assert source["title"] == missing_issue["title"]
 
     validation = client.post(f"/pipelines/{pipeline['id']}/validate")
     assert validation.status_code == 200

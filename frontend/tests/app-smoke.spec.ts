@@ -557,16 +557,13 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await page.getByRole("button", { name: "Projects" }).click();
   await page.getByRole("button", { name: project.name }).click();
   await page.getByRole("button", { name: "Analysis" }).click();
-  await page.getByRole("button", { name: "Use in Pipeline" }).click();
+  await page.getByRole("button", { name: "Add to Pipeline" }).click();
 
   await expect(page.getByRole("heading", { name: "Pipeline Builder" })).toBeVisible();
-  await expect(page.getByText("Created a pipeline draft and loaded recommendation: numeric_imputation")).toBeVisible();
-  await expect(page.locator(".recommendation-focus")).toBeVisible();
-  await expect(page.getByLabel("income")).toBeChecked();
-  await expect(page.getByLabel("strategy")).toHaveValue("median");
-  await expect(page.getByRole("button", { name: "Add Step" })).toBeEnabled();
-
-  await page.getByRole("button", { name: "Add Step" }).click();
+  await expect(page.getByText("Added recommendation to pipeline: numeric_imputation")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Added From Recommendations" })).toBeVisible();
+  await expect(page.getByText("Impute numeric missing values").first()).toBeVisible();
+  await expect(page.getByText("Analysis recommendation / numeric_imputation / income")).toBeVisible();
   const addedStep = page.locator(".pipeline-step").filter({ hasText: "numeric_imputation" });
   await expect(addedStep).toBeVisible();
   await expect(addedStep).toContainText("income");
@@ -595,8 +592,8 @@ test("adds an issue suggestion to the selected pipeline", async ({ page }) => {
   await page.getByRole("button", { name: "Projects" }).click();
   await page.getByRole("button", { name: project.name }).click();
   await page.getByRole("button", { name: "Analysis" }).click();
-  await page.getByRole("button", { name: "Use in Pipeline" }).click();
-  await expect(page.getByText("Created a pipeline draft and loaded recommendation: numeric_imputation")).toBeVisible();
+  await page.getByRole("button", { name: "Add to Pipeline" }).click();
+  await expect(page.getByText("Added recommendation to pipeline: numeric_imputation")).toBeVisible();
 
   await page.getByRole("navigation").getByRole("button", { name: "Issues" }).click();
   await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible();

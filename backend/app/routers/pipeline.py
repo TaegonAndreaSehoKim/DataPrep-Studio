@@ -633,7 +633,18 @@ def create_pipeline_step_from_issue(pipeline_id: int, issue_id: int, db: Session
         enabled=True,
         operation_type=suggestion.operation_type,
         columns_json=json.dumps(suggestion.columns),
-        params_json=json.dumps(suggestion.params),
+        params_json=json.dumps(
+            {
+                **suggestion.params,
+                "__dataprep_source": {
+                    "type": "issue",
+                    "issue_id": issue.id,
+                    "title": issue.title,
+                    "category": issue.category,
+                    "reason": suggestion.reason,
+                },
+            }
+        ),
     )
     db.add(step)
     db.commit()

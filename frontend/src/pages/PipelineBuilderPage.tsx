@@ -11,6 +11,25 @@ import { defaultParamsForOperation, OperationEditor } from "../components/Operat
 import { PipelineStepCard } from "../components/PipelineStepCard";
 
 const OPERATIONS_ALLOW_EMPTY_COLUMNS = new Set(["remove_duplicate_rows", "rename_columns", "reorder_columns"]);
+const SOURCE_PARAM_KEY = "__dataprep_source";
+
+type StepSource = {
+  type?: string;
+  title?: string;
+  category?: string;
+  reason?: string;
+  issue_id?: number;
+};
+
+function stepSource(step: Pipeline["steps"][number]): StepSource | null {
+  const raw = step.params[SOURCE_PARAM_KEY];
+  return raw && typeof raw === "object" && !Array.isArray(raw) ? raw as StepSource : null;
+}
+
+function userParams(params: Record<string, unknown>) {
+  const { [SOURCE_PARAM_KEY]: _source, ...rest } = params;
+  return rest;
+}
 
 export function PipelineBuilderPage({
   projectId,
@@ -49,7 +68,6 @@ export function PipelineBuilderPage({
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const addStepSectionRef = useRef<HTMLDivElement | null>(null);
   const consumedDraftRef = useRef<SuggestedPipelineStep | null>(null);
 
   const operation = useMemo(
@@ -67,6 +85,7 @@ export function PipelineBuilderPage({
     }
     return grouped;
   }, [validation]);
+  const sourcedSteps = useMemo(() => selectedPipeline?.steps.filter((step) => stepSource(step)) ?? [], [selectedPipeline]);
 
   const availableColumns = useMemo(() => {
     const preferredRole = mode === "train_test" ? "train" : "single";
@@ -141,30 +160,53 @@ export function PipelineBuilderPage({
       onInitialStepDraftConsumed();
       return;
     }
-    setOperationType(initialStepDraft.operation_type);
-    setSelectedColumns(initialStepDraft.columns);
-    setParams({ ...defaultParamsForOperation(draftOperation), ...initialStepDraft.params });
-    setDraftNotice(`Loaded recommendation: ${initialStepDraft.operation_type}. Review parameters, then add the step.`);
-    if (!selectedPipeline && projectId) {
-      setSaving(true);
-      apiClient
-        .createPipeline(projectId, {
+    const nextParams = {
+      ...defaultParamsForOperation(draftOperation),
+      ...initialStepDraft.params,
+      [SOURCE_PARAM_KEY]: {
+        type: "recommendation",
+        title: initialStepDraft.source_title || initialStepDraft.operation_type,
+        category: initialStepDraft.source_category,
+        reason: initialStepDraft.reason
+      }
+    };
+    const ensurePipeline = selectedPipeline
+      ? Promise.resolve(selectedPipeline)
+      : projectId
+        ? apiClient.createPipeline(projectId, {
           name: `Recommended preprocessing #${selectedAnalysis || "draft"}`,
           mode,
           analysis_run_id: selectedAnalysis ? Number(selectedAnalysis) : null
         })
-        .then((pipeline) => {
-          setSelectedPipeline(pipeline);
-          setPipelines((current) => [pipeline, ...current.filter((item) => item.id !== pipeline.id)]);
-          onPipelineSelected(pipeline.id);
-          setDraftNotice(`Created a pipeline draft and loaded recommendation: ${initialStepDraft.operation_type}. Review parameters, then add the step.`);
-        })
-        .catch((err: Error) => setError(err.message))
-        .finally(() => setSaving(false));
-    }
-    window.setTimeout(() => {
-      addStepSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
+        : Promise.resolve(null);
+    setSaving(true);
+    setError(null);
+    ensurePipeline
+      .then(async (pipeline) => {
+        if (!pipeline) {
+          throw new Error("Choose a project before adding a recommendation.");
+        }
+        setSelectedPipeline(pipeline);
+        setPipelines((current) => [pipeline, ...current.filter((item) => item.id !== pipeline.id)]);
+        onPipelineSelected(pipeline.id);
+        await apiClient.createPipelineStep(pipeline.id, {
+          operation_type: initialStepDraft.operation_type,
+          columns: initialStepDraft.columns,
+          params: nextParams
+        });
+        const updated = await apiClient.getPipeline(pipeline.id);
+        setSelectedPipeline(updated);
+        setPipelines((current) => [updated, ...current.filter((item) => item.id !== updated.id)]);
+        setValidation(null);
+        setDraftNotice(`Added recommendation to pipeline: ${initialStepDraft.operation_type}.`);
+      })
+      .catch((err: Error) => {
+        setOperationType(initialStepDraft.operation_type);
+        setSelectedColumns(initialStepDraft.columns);
+        setParams(userParams(nextParams));
+        setError(err.message);
+      })
+      .finally(() => setSaving(false));
     onInitialStepDraftConsumed();
   }, [initialStepDraft, mode, onInitialStepDraftConsumed, onPipelineSelected, operations, projectId, selectedAnalysis, selectedPipeline]);
 
@@ -349,6 +391,25 @@ export function PipelineBuilderPage({
           </div>
         ) : null}
 
+        {selectedPipeline ? (
+          <div className="pipeline-summary">
+            <div>
+              <span className="field-label">Selected Pipeline</span>
+              <strong>{selectedPipeline.name}</strong>
+              <small>
+                {selectedPipeline.mode} / {selectedPipeline.status} / {selectedPipeline.steps.length} steps
+              </small>
+            </div>
+            <div>
+              <span className="field-label">Recommendation/Issue Steps</span>
+              <strong>{sourcedSteps.length}</strong>
+              <small>{sourcedSteps.length ? "Review the added items below." : "No recommendation-backed steps yet."}</small>
+            </div>
+          </div>
+        ) : null}
+
+        {draftNotice ? <div className="state state-success compact-state">{draftNotice}</div> : null}
+
         {selectedPipeline?.steps.length ? (
           <div className="list">
             {selectedPipeline.steps.map((step, index) => (
@@ -388,6 +449,25 @@ export function PipelineBuilderPage({
         ) : null}
       </Card>
 
+      {sourcedSteps.length ? (
+        <Card title="Added From Recommendations">
+          <div className="list">
+            {sourcedSteps.map((step) => {
+              const source = stepSource(step);
+              return (
+                <div className="suggestion-box" key={step.id}>
+                  <strong>{source?.title || step.operation_type}</strong>
+                  <span>
+                    {source?.type === "issue" ? "Issue suggestion" : "Analysis recommendation"} / {step.operation_type} / {step.columns.length ? step.columns.join(", ") : "all rows"}
+                  </span>
+                  {source?.reason ? <small>{source.reason}</small> : null}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ) : null}
+
       <Card title="Import Config">
         <form className="form" onSubmit={importConfig}>
           <label>
@@ -405,10 +485,9 @@ export function PipelineBuilderPage({
         </form>
       </Card>
 
-      <div ref={addStepSectionRef} className={draftNotice ? "recommendation-focus" : undefined}>
-        <Card title="Add Step">
+      <div>
+        <Card title="Add Manual Step">
           <form className="form" onSubmit={addStep}>
-            {draftNotice ? <div className="state state-success">{draftNotice}</div> : null}
             <label>
               <span>Operation</span>
               <select value={operationType} onChange={(event) => changeOperation(event.target.value)}>

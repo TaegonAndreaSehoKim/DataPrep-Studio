@@ -486,9 +486,13 @@ export function AnalysisPage({
                         <Button
                           type="button"
                           variant="secondary"
-                          onClick={() => overview && recommendation.suggested_step && onUseRecommendation(overview.analysis_run.id, recommendation.suggested_step)}
+                          onClick={() => overview && recommendation.suggested_step && onUseRecommendation(overview.analysis_run.id, {
+                            ...recommendation.suggested_step,
+                            source_title: recommendation.title,
+                            source_category: recommendation.category
+                          })}
                         >
-                          Use in Pipeline
+                          Add to Pipeline
                         </Button>
                       </div>
                     </>

@@ -14,7 +14,7 @@ It is designed for users who want to inspect data quality, choose transformation
 6. Save reusable analysis setup when the same dataset rules should be rerun, and update or delete saved setup as it changes.
 7. Run dataset analysis.
 8. Inspect readiness score, notable preprocessing recommendations, issues, charts, and column profiles.
-9. Send an accepted preprocessing recommendation into an editable pipeline draft, or build a pipeline manually.
+9. Add an accepted preprocessing recommendation directly into the pipeline, with added recommendation and issue-origin steps summarized for review, or build a pipeline manually.
 10. Generate a suggested pipeline draft, import an exported preprocessing config, or configure operation parameters manually.
 11. Validate the pipeline against selected columns, profile types, and step-to-step column availability, with affected-step feedback, then preview before/after summaries, column-level diffs, and sample rows.
 12. Apply the pipeline.
