@@ -151,6 +151,10 @@ async function mockApi(page: Page) {
     }
 
     if (method === "POST" && url.pathname === `/projects/${project.id}/datasets/upload`) {
+      if (request.postData()?.includes("broken.csv")) {
+        await route.fulfill({ status: 400, body: "Invalid CSV file" });
+        return;
+      }
       currentDataset = uploadedDataset;
       await route.fulfill({ status: 201, json: { dataset: currentDataset } });
       return;
@@ -527,6 +531,24 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
   await page.getByRole("button", { name: "Run Analysis" }).click();
   await expect(page.getByText("88.3").first()).toBeVisible();
   await expect(page.getByText("Impute numeric missing values")).toBeVisible();
+});
+
+test("shows a readable upload error when the backend rejects a CSV", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Projects" }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("button", { name: "Upload Dataset" }).click();
+
+  await page.getByLabel("CSV File").setInputFiles({
+    name: "broken.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("not,a,valid,csv\n\"unterminated\n")
+  });
+  await page.getByRole("button", { name: "Upload CSV" }).click();
+
+  await expect(page.getByText("Invalid CSV file")).toBeVisible();
+  await expect(page.getByText("Upload complete:")).not.toBeVisible();
 });
 
 test("loads a recommendation into pipeline step parameters", async ({ page }) => {
