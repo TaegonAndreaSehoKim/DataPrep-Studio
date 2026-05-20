@@ -20,6 +20,14 @@ npm run dev
 npm run build
 ```
 
+## Browser Tests
+
+```powershell
+npm run test:e2e
+```
+
+The Playwright suite covers dashboard/project navigation, upload-to-analysis flow, recommendation-to-pipeline step creation, preview, apply, and export navigation with mocked backend responses.
+
 ## API Base URL
 
 The default API base URL is:

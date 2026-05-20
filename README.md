@@ -170,12 +170,12 @@ Built so far:
 - versioned preprocessing config metadata for exported pipeline names, operation lists, summaries, and train-only fit notes
 - generated cleaned CSV, config JSON, markdown report, and Python code artifacts
 - React/Vite frontend workflow for projects, upload, analysis, issues, columns, pipelines, preview, and exports
-- backend pytest coverage, frontend build validation, and Playwright browser smoke tests
+- backend pytest coverage, frontend build validation, and Playwright browser workflow tests for upload, analysis, recommendation-to-pipeline, preview, apply, and export navigation
 
 Next implementation milestones:
 
 - UI polish after manual workflow screenshots
-- broader browser coverage for upload, analysis, pipeline preview, and export workflows
+- broader browser coverage for train/test mode, issue pages, column charts, and failure states
 
 ## Development Workflow
 
@@ -203,7 +203,7 @@ DataPrep Studio.txt       original product requirements
 - SQLite and local filesystem storage are not production persistence.
 - Readiness scores and issue recommendations are heuristic.
 - Generated Python code replays fitted preprocessing steps for the implemented MVP operations, but should still be reviewed before production use.
-- Frontend browser coverage is limited to smoke tests and does not yet cover the full CSV upload and pipeline execution workflow.
+- Frontend browser coverage exercises the core upload, analysis, recommendation-to-pipeline, preview, apply, and export navigation workflow, but does not yet cover train/test mode or failure states.
 - No authentication, collaboration, cloud storage, or deployment path yet.
 - No model training, AutoML, or hyperparameter tuning.
 

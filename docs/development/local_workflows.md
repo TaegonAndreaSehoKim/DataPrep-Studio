@@ -72,6 +72,15 @@ cd frontend
 npm run build
 ```
 
+## Frontend Browser Tests
+
+```powershell
+cd frontend
+npm run test:e2e
+```
+
+The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, CSV upload, analysis run, recommendation-to-pipeline, preview, apply, and export navigation.
+
 ## Local Storage
 
 Uploaded files should live under:
