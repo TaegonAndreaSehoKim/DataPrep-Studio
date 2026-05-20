@@ -391,6 +391,21 @@ async function mockApi(page: Page) {
       return;
     }
 
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/download/report` || url.pathname === `/analysis/${uploadedAnalysis.id}/download/report`)) {
+      await route.fulfill({
+        contentType: "text/markdown; charset=utf-8",
+        body: `# DataPrep Studio Analysis Report
+
+## Executive Summary
+- Readiness score: ${currentAnalysis.readiness_score.toFixed(1)}
+
+## Preprocessing Recommendations
+- Impute numeric missing values
+`
+      });
+      return;
+    }
+
     if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/columns` || url.pathname === `/analysis/${uploadedAnalysis.id}/columns`)) {
       await route.fulfill({
         json: [
@@ -530,8 +545,12 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
 
   await page.getByRole("button", { name: "Run Analysis" }).click();
   await expect(page.getByText("88.3").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Analysis Report", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "DataPrep Studio Analysis Report" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Executive Summary" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Download Report" })).toBeVisible();
-  await expect(page.getByText("Impute numeric missing values")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download Markdown" })).toBeVisible();
+  await expect(page.getByText("Impute numeric missing values").first()).toBeVisible();
 });
 
 test("shows a readable upload error when the backend rejects a CSV", async ({ page }) => {

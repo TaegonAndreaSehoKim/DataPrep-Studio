@@ -19,6 +19,7 @@ import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
+import { ReportPreview } from "../components/ReportPreview";
 import { ScoreCard } from "../components/ScoreCard";
 
 export function AnalysisPage({
@@ -49,6 +50,7 @@ export function AnalysisPage({
   const [preprocessingRecommendations, setPreprocessingRecommendations] = useState<AnalysisPreprocessingRecommendations | null>(null);
   const [comparison, setComparison] = useState<Record<string, unknown> | null>(null);
   const [charts, setCharts] = useState<AnalysisChartsData | null>(null);
+  const [analysisReport, setAnalysisReport] = useState("");
   const [mode, setMode] = useState<Pipeline["mode"]>("single");
   const [target, setTarget] = useState("");
   const [problemType, setProblemType] = useState<AnalysisRun["problem_type"]>("classification");
@@ -70,6 +72,21 @@ export function AnalysisPage({
     return preferredDataset?.columns ?? [];
   }, [preferredDataset]);
 
+  async function loadAnalysisDetails(nextAnalysisId: number) {
+    const [nextOverview, nextRecommendations, nextComparison, nextCharts, nextReport] = await Promise.all([
+      apiClient.getAnalysisOverview(nextAnalysisId),
+      apiClient.getAnalysisPreprocessingRecommendations(nextAnalysisId),
+      apiClient.getTrainTestComparison(nextAnalysisId).catch(() => null),
+      apiClient.getAnalysisCharts(nextAnalysisId),
+      apiClient.getAnalysisReport(nextAnalysisId).catch(() => "")
+    ]);
+    setOverview(nextOverview);
+    setPreprocessingRecommendations(nextRecommendations);
+    setComparison(nextComparison);
+    setCharts(nextCharts);
+    setAnalysisReport(nextReport);
+  }
+
   useEffect(() => {
     if (!projectId) {
       return;
@@ -83,22 +100,13 @@ export function AnalysisPage({
         const nextAnalysis = analysisId ? analysisResult.find((item) => item.id === analysisId) : analysisResult[0];
         if (nextAnalysis) {
           onAnalysisSelected(nextAnalysis.id);
-          return Promise.all([
-            apiClient.getAnalysisOverview(nextAnalysis.id),
-            apiClient.getAnalysisPreprocessingRecommendations(nextAnalysis.id),
-            apiClient.getTrainTestComparison(nextAnalysis.id).catch(() => null),
-            apiClient.getAnalysisCharts(nextAnalysis.id)
-          ]).then(([nextOverview, nextRecommendations, nextComparison, nextCharts]) => {
-            setOverview(nextOverview);
-            setPreprocessingRecommendations(nextRecommendations);
-            setComparison(nextComparison);
-            setCharts(nextCharts);
-          });
+          return loadAnalysisDetails(nextAnalysis.id);
         }
         setOverview(null);
         setPreprocessingRecommendations(null);
         setComparison(null);
         setCharts(null);
+        setAnalysisReport("");
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
@@ -268,16 +276,7 @@ export function AnalysisPage({
         ignored_columns: normalizedIgnoredColumns()
       });
       onAnalysisSelected(analysis.id);
-      const [nextOverview, nextRecommendations, nextComparison, nextCharts] = await Promise.all([
-        apiClient.getAnalysisOverview(analysis.id),
-        apiClient.getAnalysisPreprocessingRecommendations(analysis.id),
-        apiClient.getTrainTestComparison(analysis.id).catch(() => null),
-        apiClient.getAnalysisCharts(analysis.id)
-      ]);
-      setOverview(nextOverview);
-      setPreprocessingRecommendations(nextRecommendations);
-      setComparison(nextComparison);
-      setCharts(nextCharts);
+      await loadAnalysisDetails(analysis.id);
       setAnalyses((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
@@ -467,6 +466,15 @@ export function AnalysisPage({
         )}
       </Card>
 
+      {overview && analysisReport ? (
+        <Card title="Analysis Report">
+          <div className="toolbar">
+            <a className="button button-secondary" href={apiClient.analysisReportUrl(overview.analysis_run.id)}>Download Markdown</a>
+          </div>
+          <ReportPreview markdown={analysisReport} />
+        </Card>
+      ) : null}
+
       <Card title="Preprocessing Recommendations">
         {preprocessingRecommendations?.recommendations.length ? (
           <div className="list">
@@ -526,19 +534,7 @@ export function AnalysisPage({
                 key={analysis.id}
                 onClick={() => {
                   onAnalysisSelected(analysis.id);
-                  Promise.all([
-                    apiClient.getAnalysisOverview(analysis.id),
-                    apiClient.getAnalysisPreprocessingRecommendations(analysis.id),
-                    apiClient.getTrainTestComparison(analysis.id).catch(() => null),
-                    apiClient.getAnalysisCharts(analysis.id)
-                  ])
-                    .then(([nextOverview, nextRecommendations, nextComparison, nextCharts]) => {
-                      setOverview(nextOverview);
-                      setPreprocessingRecommendations(nextRecommendations);
-                      setComparison(nextComparison);
-                      setCharts(nextCharts);
-                    })
-                    .catch((err: Error) => setError(err.message));
+                  loadAnalysisDetails(analysis.id).catch((err: Error) => setError(err.message));
                 }}
               >
                 <strong>Score {analysis.readiness_score.toFixed(1)}</strong>

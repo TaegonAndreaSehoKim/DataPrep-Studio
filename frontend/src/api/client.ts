@@ -119,6 +119,14 @@ export const apiClient = {
     request<AnalysisPreprocessingRecommendations>(`/analysis/${analysisId}/preprocessing-recommendations`),
   getAnalysisCharts: (analysisId: number) => request<AnalysisCharts>(`/analysis/${analysisId}/charts`),
   analysisReportUrl: (analysisId: number) => `${API_BASE_URL}/analysis/${analysisId}/download/report`,
+  getAnalysisReport: async (analysisId: number) => {
+    const response = await fetch(`${API_BASE_URL}/analysis/${analysisId}/download/report`);
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `Request failed with status ${response.status}`);
+    }
+    return response.text();
+  },
   listColumns: (analysisId: number) => request<ColumnProfile[]>(`/analysis/${analysisId}/columns`),
   listIssues: (analysisId: number) => request<Issue[]>(`/analysis/${analysisId}/issues`),
   getIssueSuggestedStep: (issueId: number) => request<SuggestedPipelineStep>(`/issues/${issueId}/suggested-step`),
