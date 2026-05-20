@@ -4,9 +4,23 @@ from app.services.code_generator import generate_pipeline_code
 
 def test_markdown_report_includes_key_sections():
     report = generate_report(
-        {"project_id": 1, "pipeline_id": 2, "mode": "single", "input_file_names": ["input.csv"], "output_file_names": ["cleaned.csv"], "steps": []},
-        {"row_count": 3},
-        {"row_count": 3},
+        {
+            "project_id": 1,
+            "pipeline_id": 2,
+            "mode": "single",
+            "input_file_names": ["input.csv"],
+            "output_file_names": ["cleaned.csv"],
+            "steps": [
+                {
+                    "step_id": 10,
+                    "operation_type": "numeric_imputation",
+                    "columns": ["age"],
+                    "params": {"strategy": "median"},
+                }
+            ],
+        },
+        {"row_count": 3, "missing_cells": 1},
+        {"row_count": 3, "missing_cells": 0},
         [{"summary": "Filled values"}],
         [],
     )
@@ -16,6 +30,9 @@ def test_markdown_report_includes_key_sections():
     assert "## Before Summary" in report
     assert "## After Summary" in report
     assert "## Notes on Leakage-Safe Train/Test Processing" in report
+    assert '- Step 10: `numeric_imputation`' in report
+    assert '"missing_cells": 1' in report
+    assert "{'row_count': 3" not in report
 
 
 def test_generated_pipeline_code_replays_fitted_steps():
