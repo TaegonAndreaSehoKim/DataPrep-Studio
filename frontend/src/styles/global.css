@@ -301,6 +301,16 @@ main {
   padding: 10px;
 }
 
+.action-state {
+  display: grid;
+  gap: 10px;
+}
+
+.action-state strong,
+.action-state span {
+  display: block;
+}
+
 .list {
   display: grid;
   gap: 10px;
@@ -349,6 +359,70 @@ main {
   justify-content: flex-end;
 }
 
+.step-main {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.step-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.step-heading small {
+  color: #6a7a90;
+}
+
+.source-badge {
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.source-manual {
+  background: #eef2f7;
+  color: #4d5e73;
+}
+
+.source-recommended {
+  background: #e8f6ee;
+  color: #1f6f4a;
+}
+
+.step-summary {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.step-summary div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.step-summary dt {
+  color: #3d4d61;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.step-summary dd {
+  min-width: 0;
+  margin: 0;
+  color: #4d5e73;
+  overflow-wrap: anywhere;
+}
+
+.step-impact {
+  color: #5f6f86;
+  font-size: 13px;
+}
+
 .step-actions button {
   border: 1px solid #c9d4e3;
   border-radius: 6px;
@@ -368,6 +442,15 @@ main {
   margin: 0;
   padding-left: 20px;
   color: #5f6f86;
+}
+
+.step-validation li {
+  margin-bottom: 6px;
+}
+
+.step-validation li strong,
+.step-validation li span {
+  display: block;
 }
 
 .list-row span,
@@ -424,6 +507,15 @@ main {
   padding-left: 20px;
 }
 
+.validation-list li {
+  margin-bottom: 6px;
+}
+
+.validation-list li strong,
+.validation-list li span {
+  display: block;
+}
+
 .form {
   display: grid;
   max-width: 640px;
@@ -468,6 +560,42 @@ main {
 .column-picker {
   display: grid;
   gap: 8px;
+}
+
+.manual-builder {
+  max-width: none;
+}
+
+.builder-stage {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e1e7f0;
+  border-radius: 8px;
+}
+
+.stage-number {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: #1f7a55;
+  color: #fff;
+  font-weight: 800;
+}
+
+.advanced-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.advanced-panel summary {
+  cursor: pointer;
+  color: #1d2633;
+  font-weight: 800;
 }
 
 .checkbox-grid {
@@ -656,7 +784,10 @@ pre {
   .compact-form,
   .checkbox-grid,
   .override-grid,
-  .loaded-data-bar {
+  .loaded-data-bar,
+  .pipeline-summary,
+  .builder-stage,
+  .step-summary div {
     grid-template-columns: 1fr;
   }
 

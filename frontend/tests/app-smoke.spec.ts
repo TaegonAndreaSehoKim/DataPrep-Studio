@@ -500,7 +500,7 @@ test("opens pipeline builder and shows config import affordance", async ({ page 
   await page.getByRole("button", { name: project.name }).click();
   await page.getByRole("button", { name: "Pipeline" }).click();
 
-  await expect(page.getByRole("heading", { name: "Pipeline Builder" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pipeline Overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Import Config" })).toBeVisible();
   await expect(page.getByLabel("preprocessing_config.json")).toBeVisible();
   await expect(page.getByRole("button", { name: "Import Config" })).toBeDisabled();
@@ -559,21 +559,27 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await page.getByRole("button", { name: "Analysis" }).click();
   await page.getByRole("button", { name: "Add to Pipeline" }).click();
 
-  await expect(page.getByRole("heading", { name: "Pipeline Builder" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pipeline Overview" })).toBeVisible();
   await expect(page.getByText("Added recommendation to pipeline: numeric_imputation")).toBeVisible();
+  await expect(page.getByText("Next: validate the pipeline, preview changes, or add another manual step.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Added From Recommendations" })).toBeVisible();
   await expect(page.getByText("Impute numeric missing values").first()).toBeVisible();
   await expect(page.getByText("Analysis recommendation / numeric_imputation / income")).toBeVisible();
   const addedStep = page.locator(".pipeline-step").filter({ hasText: "numeric_imputation" });
   await expect(addedStep).toBeVisible();
+  await expect(addedStep).toContainText("Numeric Imputation");
+  await expect(addedStep).toContainText("Recommended");
+  await expect(addedStep).toContainText("strategy: median");
+  await expect(addedStep).toContainText("Preview impact");
   await expect(addedStep).toContainText("income");
 
-  await page.getByRole("button", { name: "Validate" }).click();
+  await page.getByRole("button", { name: "Validate", exact: true }).click();
   await expect(page.getByText("Pipeline is valid")).toBeVisible();
   await expect(addedStep).toContainText("1 validation issue");
   await expect(addedStep).toContainText("Review median imputation before applying.");
+  await expect(addedStep).toContainText("Fix:");
 
-  await page.getByRole("main").getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("main").getByRole("button", { name: "Preview", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Pipeline Preview" })).toBeVisible();
   await expect(page.getByText("Filled missing income values.")).toBeVisible();
   await expect(page.getByRole("cell", { name: "income" })).toBeVisible();
