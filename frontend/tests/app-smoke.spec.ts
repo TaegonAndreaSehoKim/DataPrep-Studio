@@ -61,10 +61,30 @@ const pipeline = {
   updated_at: "2026-05-17T00:00:00Z"
 };
 
+const pipelineRun = {
+  id: 701,
+  pipeline_id: pipeline.id,
+  project_id: project.id,
+  status: "completed",
+  before_summary: { row_count: 5, column_count: 4 },
+  after_summary: { row_count: 5, column_count: 4 },
+  output_paths: {
+    cleaned_single: "exports/project_101/pipeline_run_701/cleaned_dataset.csv",
+    config: "exports/project_101/pipeline_run_701/preprocessing_config.json",
+    report: "exports/project_101/pipeline_run_701/preprocessing_report.md",
+    code: "exports/project_101/pipeline_run_701/pipeline_code.py"
+  },
+  report_path: "exports/project_101/pipeline_run_701/preprocessing_report.md",
+  config_path: "exports/project_101/pipeline_run_701/preprocessing_config.json",
+  code_path: "exports/project_101/pipeline_run_701/pipeline_code.py",
+  created_at: "2026-05-17T00:00:00Z"
+};
+
 async function mockApi(page: Page) {
   let currentDataset = dataset;
   let currentAnalysis = analysis;
   let createdPipeline: typeof pipeline | null = null;
+  let appliedRun: typeof pipelineRun | null = null;
 
   await page.route(`${apiBase}/**`, async (route) => {
     const request = route.request();
@@ -192,6 +212,61 @@ async function mockApi(page: Page) {
           ]
         }
       });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/preview`) {
+      await route.fulfill({
+        json: {
+          before_summary: { row_count: 5, column_count: 4, missing_cells: 1 },
+          after_summary: { row_count: 5, column_count: 4, missing_cells: 0 },
+          affected_columns: ["income"],
+          before_sample_rows: [{ age: 41, income: null, city: "Seattle", target: "no" }],
+          sample_rows: [{ age: 41, income: 72000, city: "Seattle", target: "no" }],
+          column_diffs: [
+            {
+              column_name: "income",
+              status: "changed",
+              before_missing_count: 1,
+              after_missing_count: 0,
+              before_non_null_count: 4,
+              after_non_null_count: 5,
+              changed_sample_count: 1,
+              before_dtype: "float64",
+              after_dtype: "float64"
+            }
+          ],
+          step_effects: [
+            {
+              operation_type: "numeric_imputation",
+              summary: "Filled missing income values."
+            }
+          ],
+          warnings: [],
+          fitted_params: []
+        }
+      });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/preview/charts`) {
+      await route.fulfill({ json: { analysis_id: currentAnalysis.id, charts: {} } });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/apply`) {
+      appliedRun = pipelineRun;
+      await route.fulfill({ status: 201, json: appliedRun });
+      return;
+    }
+
+    if (method === "GET" && url.pathname === `/pipeline-runs/${pipelineRun.id}` && appliedRun) {
+      await route.fulfill({ json: appliedRun });
+      return;
+    }
+
+    if (method === "GET" && url.pathname === `/projects/${project.id}/pipeline-runs`) {
+      await route.fulfill({ json: appliedRun ? [appliedRun] : [] });
       return;
     }
 
@@ -409,4 +484,16 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await expect(page.getByText("Pipeline is valid")).toBeVisible();
   await expect(addedStep).toContainText("1 validation issue");
   await expect(addedStep).toContainText("Review median imputation before applying.");
+
+  await page.getByRole("main").getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByRole("heading", { name: "Pipeline Preview" })).toBeVisible();
+  await expect(page.getByText("Filled missing income values.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "income" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Apply Pipeline" }).click();
+  await expect(page.getByRole("heading", { name: `Downloads for Run #${pipelineRun.id}` })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Config" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Report" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Code" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Cleaned CSV" })).toBeVisible();
 });
