@@ -400,10 +400,33 @@ async function mockApi(page: Page) {
             missing_rate: 0.2,
             unique_count: 4,
             cardinality_ratio: 0.8,
-            summary: {},
+            summary: { mean: 68000, median: 72000 },
             warnings: []
           }
         ]
+      });
+      return;
+    }
+
+    if (
+      method === "GET" &&
+      (url.pathname === `/analysis/${analysis.id}/columns/income/charts` || url.pathname === `/analysis/${uploadedAnalysis.id}/columns/income/charts`)
+    ) {
+      await route.fulfill({
+        json: {
+          analysis_id: currentAnalysis.id,
+          charts: {
+            numeric_summary: {
+              chart_type: "bar",
+              title: "Income Numeric Summary",
+              description: "Distribution summary for the selected income column.",
+              data: [
+                { label: "mean", value: 68000 },
+                { label: "median", value: 72000 }
+              ]
+            }
+          }
+        }
       });
       return;
     }
@@ -563,4 +586,20 @@ test("adds an issue suggestion to the selected pipeline", async ({ page }) => {
 
   await page.getByRole("button", { name: "Add to Pipeline" }).click();
   await expect(page.getByText("Suggested step added.")).toBeVisible();
+});
+
+test("opens column profiles and renders selected column charts", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Projects" }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("button", { name: "Analysis" }).click();
+  await page.getByRole("main").getByRole("button", { name: "Columns" }).click();
+
+  await expect(page.getByRole("heading", { name: "Columns" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "income" })).toBeVisible();
+  await expect(page.getByText('"median": 72000')).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Charts" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Income Numeric Summary" })).toBeVisible();
+  await expect(page.getByText("Distribution summary for the selected income column.")).toBeVisible();
 });
