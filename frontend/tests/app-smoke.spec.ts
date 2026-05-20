@@ -34,6 +34,20 @@ const dataset = {
   created_at: "2026-05-17T00:00:00Z"
 };
 
+const uploadedDataset = {
+  ...dataset,
+  id: 202,
+  filename: "uploaded-smoke.csv",
+  storage_path: "uploads/uploaded-smoke.csv",
+  file_size_bytes: 160
+};
+
+const uploadedAnalysis = {
+  ...analysis,
+  id: 302,
+  readiness_score: 88.25
+};
+
 const pipeline = {
   id: 401,
   project_id: project.id,
@@ -48,6 +62,8 @@ const pipeline = {
 };
 
 async function mockApi(page: Page) {
+  let currentDataset = dataset;
+  let currentAnalysis = analysis;
   let createdPipeline: typeof pipeline | null = null;
 
   await page.route(`${apiBase}/**`, async (route) => {
@@ -86,12 +102,40 @@ async function mockApi(page: Page) {
     }
 
     if (method === "GET" && url.pathname === `/projects/${project.id}/datasets`) {
-      await route.fulfill({ json: [dataset] });
+      await route.fulfill({ json: currentDataset.id === dataset.id ? [dataset] : [currentDataset, dataset] });
       return;
     }
 
     if (method === "GET" && url.pathname === `/projects/${project.id}/analysis`) {
-      await route.fulfill({ json: [analysis] });
+      await route.fulfill({ json: currentAnalysis.id === analysis.id ? [analysis] : [currentAnalysis, analysis] });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/projects/${project.id}/datasets/upload`) {
+      currentDataset = uploadedDataset;
+      await route.fulfill({ status: 201, json: { dataset: currentDataset } });
+      return;
+    }
+
+    if (method === "GET" && url.pathname === `/datasets/${currentDataset.id}/preview`) {
+      await route.fulfill({
+        json: {
+          dataset_file_id: currentDataset.id,
+          columns: currentDataset.columns,
+          rows: [
+            { age: 34, income: 72000, city: "Austin", target: "yes" },
+            { age: 41, income: null, city: "Seattle", target: "no" }
+          ],
+          row_count: currentDataset.row_count,
+          limit: Number(url.searchParams.get("limit") ?? 5)
+        }
+      });
+      return;
+    }
+
+    if (method === "POST" && url.pathname === `/projects/${project.id}/analysis/run`) {
+      currentAnalysis = uploadedAnalysis;
+      await route.fulfill({ status: 201, json: currentAnalysis });
       return;
     }
 
@@ -182,10 +226,10 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && url.pathname === `/analysis/${analysis.id}/overview`) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/overview` || url.pathname === `/analysis/${uploadedAnalysis.id}/overview`)) {
       await route.fulfill({
         json: {
-          analysis_run: analysis,
+          analysis_run: currentAnalysis,
           row_count: 5,
           column_count: 4,
           issue_counts: { warning: 1 },
@@ -196,10 +240,10 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && url.pathname === `/analysis/${analysis.id}/preprocessing-recommendations`) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/preprocessing-recommendations` || url.pathname === `/analysis/${uploadedAnalysis.id}/preprocessing-recommendations`)) {
       await route.fulfill({
         json: {
-          analysis_id: analysis.id,
+          analysis_id: currentAnalysis.id,
           recommendations: [
             {
               priority: "high",
@@ -222,22 +266,22 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && url.pathname === `/analysis/${analysis.id}/train-test-comparison`) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/train-test-comparison` || url.pathname === `/analysis/${uploadedAnalysis.id}/train-test-comparison`)) {
       await route.fulfill({ status: 404, json: { detail: "Train/test comparison not found" } });
       return;
     }
 
-    if (method === "GET" && url.pathname === `/analysis/${analysis.id}/charts`) {
-      await route.fulfill({ json: { analysis_id: analysis.id, charts: {} } });
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/charts` || url.pathname === `/analysis/${uploadedAnalysis.id}/charts`)) {
+      await route.fulfill({ json: { analysis_id: currentAnalysis.id, charts: {} } });
       return;
     }
 
-    if (method === "GET" && url.pathname === `/analysis/${analysis.id}/columns`) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/columns` || url.pathname === `/analysis/${uploadedAnalysis.id}/columns`)) {
       await route.fulfill({
         json: [
           {
             id: 1,
-            analysis_run_id: analysis.id,
+            analysis_run_id: currentAnalysis.id,
             dataset_role: "single",
             column_name: "income",
             inferred_type: "numeric",
@@ -253,10 +297,10 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && url.pathname === `/datasets/${dataset.id}/setup-suggestions`) {
+    if (method === "GET" && (url.pathname === `/datasets/${dataset.id}/setup-suggestions` || url.pathname === `/datasets/${uploadedDataset.id}/setup-suggestions`)) {
       await route.fulfill({
         json: {
-          dataset_file_id: dataset.id,
+          dataset_file_id: currentDataset.id,
           recommended_target_column: "target",
           recommended_problem_type: "classification",
           target_candidates: [
@@ -312,6 +356,33 @@ test("opens pipeline builder and shows config import affordance", async ({ page 
   await expect(page.getByRole("heading", { name: "Import Config" })).toBeVisible();
   await expect(page.getByLabel("preprocessing_config.json")).toBeVisible();
   await expect(page.getByRole("button", { name: "Import Config" })).toBeDisabled();
+});
+
+test("uploads a CSV and runs analysis from the upload completion state", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Projects" }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("button", { name: "Upload Dataset" }).click();
+
+  await page.getByLabel("CSV File").setInputFiles({
+    name: uploadedDataset.filename,
+    mimeType: "text/csv",
+    buffer: Buffer.from("age,income,city,target\n34,72000,Austin,yes\n41,,Seattle,no\n")
+  });
+  await page.getByRole("button", { name: "Upload CSV" }).click();
+
+  await expect(page.getByText(`Upload complete: ${uploadedDataset.filename}`)).toBeVisible();
+  await expect(page.getByText("Austin")).toBeVisible();
+  await expect(page.getByText(uploadedDataset.filename).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Run Analysis" }).click();
+  await expect(page.getByRole("heading", { name: "Run Analysis" })).toBeVisible();
+  await expect(page.getByText("Suggested setup applied from the loaded dataset.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Run Analysis" }).click();
+  await expect(page.getByText("88.3").first()).toBeVisible();
+  await expect(page.getByText("Impute numeric missing values")).toBeVisible();
 });
 
 test("loads a recommendation into pipeline step parameters", async ({ page }) => {
