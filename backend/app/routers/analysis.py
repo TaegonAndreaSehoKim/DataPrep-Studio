@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,7 @@ from app.schemas import (
 )
 from app.services.csv_loader import CsvValidationError, read_csv_file
 from app.services.chart_builder import build_analysis_charts, build_column_charts
+from app.services.analysis_report_generator import generate_analysis_report
 from app.services.drift_detector import detect_train_test_drift
 from app.services.issue_detector import detect_issues
 from app.services.preprocessing_advisor import build_preprocessing_recommendations
@@ -420,6 +421,46 @@ def get_preprocessing_recommendations(analysis_id: int, db: Session = Depends(ge
     issues = list(db.scalars(select(Issue).where(Issue.analysis_run_id == analysis_id).order_by(Issue.id)).all())
     recommendations, notes = build_preprocessing_recommendations(analysis_id, issues, profiles)
     return AnalysisPreprocessingRecommendationsOut(analysis_id=analysis_id, recommendations=recommendations, notes=notes)
+
+
+@router.get("/analysis/{analysis_id}/download/report")
+def download_analysis_report(analysis_id: int, db: Session = Depends(get_db)) -> Response:
+    analysis = db.get(AnalysisRun, analysis_id)
+    if analysis is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis run not found")
+    project = db.get(Project, analysis.project_id)
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    profiles = list(db.scalars(select(ColumnProfile).where(ColumnProfile.analysis_run_id == analysis_id)).all())
+    issues = list(db.scalars(select(Issue).where(Issue.analysis_run_id == analysis_id).order_by(Issue.id)).all())
+    comparison = db.scalars(select(TrainTestComparison).where(TrainTestComparison.analysis_run_id == analysis_id)).first()
+    recommendations, notes = build_preprocessing_recommendations(analysis_id, issues, profiles)
+    charts = build_analysis_charts(analysis_id, profiles, issues, comparison)
+
+    report = generate_analysis_report(
+        project=project,
+        analysis=analysis,
+        datasets={
+            "single": db.get(DatasetFile, analysis.single_dataset_file_id) if analysis.single_dataset_file_id else None,
+            "train": db.get(DatasetFile, analysis.train_dataset_file_id) if analysis.train_dataset_file_id else None,
+            "test": db.get(DatasetFile, analysis.test_dataset_file_id) if analysis.test_dataset_file_id else None,
+        },
+        profiles=profiles,
+        issues=issues,
+        recommendations=AnalysisPreprocessingRecommendationsOut(
+            analysis_id=analysis_id,
+            recommendations=recommendations,
+            notes=notes,
+        ),
+        charts=charts,
+        comparison=comparison,
+    )
+    return Response(
+        content=report,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="analysis_{analysis_id}_report.md"'},
+    )
 
 
 @router.get("/analysis/{analysis_id}/score", response_model=ReadinessScoreOut)

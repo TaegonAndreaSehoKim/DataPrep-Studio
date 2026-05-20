@@ -133,6 +133,31 @@ def test_preprocessing_recommendations_highlight_actionable_findings(client):
     assert any("advisory" in note for note in body["notes"])
 
 
+def test_analysis_report_download_contains_rich_findings(client):
+    project = client.post("/projects", json={"name": "Report project"}).json()
+    _upload_fixture(client, project["id"])
+    analysis = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    ).json()
+
+    response = client.get(f"/analysis/{analysis['id']}/download/report")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert "analysis_" in response.headers["content-disposition"]
+    text = response.text
+    assert "# DataPrep Studio Analysis Report" in text
+    assert "## Executive Summary" in text
+    assert "## Issue Summary" in text
+    assert "## Preprocessing Recommendations" in text
+    assert "## Column Profile Details" in text
+    assert "## Chart Data Summary" in text
+    assert "Readiness score" in text
+    assert "numeric_imputation" in text
+    assert "dirty_missing_values.csv" in text
+
+
 def test_analysis_applies_missing_tokens_and_type_overrides(client):
     project = client.post("/projects", json={"name": "Setup overrides"}).json()
     csv_path = FIXTURE_DIR / "user_setup_overrides.csv"

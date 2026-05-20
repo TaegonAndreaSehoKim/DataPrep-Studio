@@ -447,6 +447,7 @@ export function AnalysisPage({
             <div className="toolbar no-margin">
               <Button variant="secondary" onClick={onOpenIssues}>Issues</Button>
               <Button variant="secondary" onClick={onOpenColumns}>Columns</Button>
+              <a className="button button-secondary" href={apiClient.analysisReportUrl(overview.analysis_run.id)}>Download Report</a>
               <Button variant="secondary" disabled={running} onClick={handleCreateSuggestedPipeline}>Create Suggested Pipeline</Button>
               <Button onClick={() => onBuildPipeline(overview.analysis_run.id)}>Build Pipeline</Button>
             </div>

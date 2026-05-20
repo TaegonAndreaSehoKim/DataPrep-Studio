@@ -23,6 +23,7 @@ Core capabilities implemented in the MVP:
 - Profile columns for type, missingness, cardinality, distributions, and warnings.
 - Detect ML-readiness issues such as missing values, duplicates, outliers, leakage candidates, high-cardinality features, target imbalance, and train/test drift.
 - Highlight analysis-specific preprocessing recommendations from notable findings.
+- Download rich markdown analysis reports with dataset context, readiness score, issues, column profiles, recommendations, chart data, and drift details.
 - Add a recommended preprocessing step directly into the pipeline builder, with recommendation and issue-origin summaries shown on the pipeline.
 - Visualize analysis, column-level summaries, and pipeline preview changes with charts.
 - Convert detected issues into type-aware suggested preprocessing steps.
@@ -163,6 +164,7 @@ Built so far:
 - user-controlled analysis setup for saved configs, update/delete, missing value tokens, ignored columns, and column type overrides
 - dataset setup suggestion API and frontend application flow
 - analysis, column, and preview chart APIs with Recharts-based frontend visualizations
+- rich markdown analysis report download
 - type-aware issue-to-pipeline-step suggestions
 - suggested pipeline draft generation from analysis issues
 - pipeline CRUD, step CRUD, reorder, toggle, operation metadata, column-aware validation, preview, apply, and exports

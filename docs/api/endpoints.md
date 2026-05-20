@@ -48,6 +48,8 @@ This file tracks the planned API surface for the MVP.
 - `GET /analysis/{analysis_id}/charts`
 - `GET /analysis/{analysis_id}/score`
 - `GET /analysis/{analysis_id}/train-test-comparison`
+- `GET /analysis/{analysis_id}/download/report`
+  - Returns a markdown report with dataset context, readiness score, issue summaries, column profiles, preprocessing recommendations, chart data, and train/test drift details when available.
 
 ## Pipelines
 

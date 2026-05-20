@@ -118,6 +118,7 @@ export const apiClient = {
   getAnalysisPreprocessingRecommendations: (analysisId: number) =>
     request<AnalysisPreprocessingRecommendations>(`/analysis/${analysisId}/preprocessing-recommendations`),
   getAnalysisCharts: (analysisId: number) => request<AnalysisCharts>(`/analysis/${analysisId}/charts`),
+  analysisReportUrl: (analysisId: number) => `${API_BASE_URL}/analysis/${analysisId}/download/report`,
   listColumns: (analysisId: number) => request<ColumnProfile[]>(`/analysis/${analysisId}/columns`),
   listIssues: (analysisId: number) => request<Issue[]>(`/analysis/${analysisId}/issues`),
   getIssueSuggestedStep: (issueId: number) => request<SuggestedPipelineStep>(`/issues/${issueId}/suggested-step`),

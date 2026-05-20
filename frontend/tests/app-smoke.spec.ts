@@ -530,6 +530,7 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
 
   await page.getByRole("button", { name: "Run Analysis" }).click();
   await expect(page.getByText("88.3").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download Report" })).toBeVisible();
   await expect(page.getByText("Impute numeric missing values")).toBeVisible();
 });
 
