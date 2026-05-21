@@ -550,6 +550,7 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
   await expect(page.getByRole("heading", { name: "Executive Summary" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Download Report" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Download Markdown" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Print Report" })).toBeVisible();
   await expect(page.getByText("Impute numeric missing values").first()).toBeVisible();
 });
 

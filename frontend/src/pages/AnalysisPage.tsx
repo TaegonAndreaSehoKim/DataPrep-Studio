@@ -467,9 +467,12 @@ export function AnalysisPage({
       </Card>
 
       {overview && analysisReport ? (
-        <Card title="Analysis Report">
-          <div className="toolbar">
+        <Card title="Analysis Report" className="print-report-area">
+          <div className="toolbar print-hidden">
             <a className="button button-secondary" href={apiClient.analysisReportUrl(overview.analysis_run.id)}>Download Markdown</a>
+            <Button type="button" variant="secondary" onClick={() => window.print()}>
+              Print Report
+            </Button>
           </div>
           <ReportPreview markdown={analysisReport} />
         </Card>
