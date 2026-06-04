@@ -264,11 +264,57 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 14px;
-  margin: 16px 0;
   padding: 14px;
   border: 1px solid #d9e1ec;
   border-radius: 8px;
   background: #f7fafc;
+}
+
+.pipeline-overview-stack {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.pipeline-recipe {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d9e1ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pipeline-recipe strong,
+.pipeline-recipe span,
+.pipeline-recipe p {
+  display: block;
+}
+
+.pipeline-recipe p {
+  margin: 0;
+  color: #5f6f86;
+}
+
+.pipeline-recipe ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.pipeline-recipe li {
+  padding: 9px 10px;
+  border: 1px solid #e1e7f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.pipeline-recipe li span {
+  color: #5f6f86;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .pipeline-summary strong,
@@ -606,6 +652,28 @@ main {
 .source-recommended {
   background: #e8f6ee;
   color: #1f6f4a;
+}
+
+.source-enabled {
+  background: #e8f2ff;
+  color: #1458a8;
+}
+
+.source-disabled {
+  background: #eef2f7;
+  color: #6a7a90;
+}
+
+.step-number {
+  display: grid;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  background: #1f7a55;
+  color: #fff;
+  font-weight: 800;
 }
 
 .step-summary {
@@ -1190,6 +1258,10 @@ pre {
   .intro-band,
   .workflow-summary {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pipeline-step {
     flex-direction: column;
   }
 }

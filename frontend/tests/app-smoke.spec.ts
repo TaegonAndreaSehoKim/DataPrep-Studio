@@ -597,6 +597,8 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "Pipeline Overview" })).toBeVisible();
   await expect(page.getByText("Added recommendation to pipeline: numeric_imputation")).toBeVisible();
   await expect(page.getByText("Next: validate the pipeline, preview changes, or add another manual step.")).toBeVisible();
+  await expect(page.getByText("This Pipeline Will")).toBeVisible();
+  await expect(page.getByText("Apply 1 enabled preprocessing steps before export.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Added From Recommendations" })).toBeVisible();
   await expect(page.getByText("Impute numeric missing values").first()).toBeVisible();
   await expect(page.getByText("Analysis recommendation / numeric_imputation / income")).toBeVisible();
@@ -604,6 +606,7 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await expect(addedStep).toBeVisible();
   await expect(addedStep).toContainText("Numeric Imputation");
   await expect(addedStep).toContainText("Recommended");
+  await expect(addedStep).toContainText("Enabled");
   await expect(addedStep).toContainText("strategy: median");
   await expect(addedStep).toContainText("Preview impact");
   await expect(addedStep).toContainText("income");

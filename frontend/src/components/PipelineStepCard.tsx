@@ -49,6 +49,7 @@ export function validationFix(issue: PipelineValidationIssue) {
 
 export function PipelineStepCard({
   step,
+  stepNumber,
   operation,
   source = null,
   validationIssues = [],
@@ -58,6 +59,7 @@ export function PipelineStepCard({
   onMoveDown
 }: {
   step: PipelineStep;
+  stepNumber?: number;
   operation?: OperationMetadata | null;
   source?: PipelineStepSource | null;
   validationIssues?: PipelineValidationIssue[];
@@ -71,9 +73,11 @@ export function PipelineStepCard({
 
   return (
     <article className="pipeline-step">
+      <div className="step-number">{stepNumber ?? step.order_index + 1}</div>
       <div className="step-main">
         <div className="step-heading">
           <span className={`source-badge ${source ? "source-recommended" : "source-manual"}`}>{sourceLabel(source)}</span>
+          <span className={`source-badge ${step.enabled ? "source-enabled" : "source-disabled"}`}>{step.enabled ? "Enabled" : "Disabled"}</span>
           <strong>{title}</strong>
           <small>{step.operation_type}</small>
         </div>

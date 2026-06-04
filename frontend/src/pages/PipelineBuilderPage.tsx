@@ -99,6 +99,12 @@ export function PipelineBuilderPage({
     }));
   }, [columnProfiles, mode]);
 
+  function stepRecipeText(step: Pipeline["steps"][number]) {
+    const operationLabel = operationsByType.get(step.operation_type)?.label ?? step.operation_type;
+    const columns = step.columns.length ? step.columns.join(", ") : "all rows";
+    return `${operationLabel} on ${columns}`;
+  }
+
   function refresh() {
     if (!projectId) {
       return Promise.resolve();
@@ -393,18 +399,43 @@ export function PipelineBuilderPage({
         ) : null}
 
         {selectedPipeline ? (
-          <div className="pipeline-summary">
-            <div>
-              <span className="field-label">Selected Pipeline</span>
-              <strong>{selectedPipeline.name}</strong>
-              <small>
-                {selectedPipeline.mode} / {selectedPipeline.status} / {selectedPipeline.steps.length} steps
-              </small>
+          <div className="pipeline-overview-stack">
+            <div className="pipeline-summary">
+              <div>
+                <span className="field-label">Selected Pipeline</span>
+                <strong>{selectedPipeline.name}</strong>
+                <small>
+                  {selectedPipeline.mode} / {selectedPipeline.status} / {selectedPipeline.steps.length} steps
+                </small>
+              </div>
+              <div>
+                <span className="field-label">Recommendation/Issue Steps</span>
+                <strong>{sourcedSteps.length}</strong>
+                <small>{sourcedSteps.length ? "Review the added items below." : "No recommendation-backed steps yet."}</small>
+              </div>
             </div>
-            <div>
-              <span className="field-label">Recommendation/Issue Steps</span>
-              <strong>{sourcedSteps.length}</strong>
-              <small>{sourcedSteps.length ? "Review the added items below." : "No recommendation-backed steps yet."}</small>
+
+            <div className="pipeline-recipe">
+              <div>
+                <span className="field-label">This Pipeline Will</span>
+                <strong>
+                  {selectedPipeline.steps.length
+                    ? `Apply ${selectedPipeline.steps.filter((step) => step.enabled).length} enabled preprocessing steps before export.`
+                    : "Wait for preprocessing steps to be added."}
+                </strong>
+              </div>
+              {selectedPipeline.steps.length ? (
+                <ol>
+                  {selectedPipeline.steps.map((step) => (
+                    <li key={step.id}>
+                      <span>{step.enabled ? "Enabled" : "Disabled"}</span>
+                      <strong>{stepRecipeText(step)}</strong>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p>Add recommendations or manual steps, then validate and preview before applying.</p>
+              )}
             </div>
           </div>
         ) : null}
@@ -428,6 +459,7 @@ export function PipelineBuilderPage({
               <PipelineStepCard
                 key={step.id}
                 step={step}
+                stepNumber={index + 1}
                 operation={operationsByType.get(step.operation_type)}
                 source={stepSource(step)}
                 validationIssues={validationIssuesByStep.get(step.id) ?? []}
