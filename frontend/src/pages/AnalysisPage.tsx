@@ -72,6 +72,20 @@ export function AnalysisPage({
     return preferredDataset?.columns ?? [];
   }, [preferredDataset]);
 
+  const issueEntries = useMemo(() => Object.entries(overview?.issue_counts ?? {}).filter(([, count]) => count > 0), [overview]);
+  const issueTotal = useMemo(() => issueEntries.reduce((sum, [, count]) => sum + count, 0), [issueEntries]);
+  const recommendationCount = preprocessingRecommendations?.recommendations.length ?? 0;
+
+  function readinessBand(score: number) {
+    if (score >= 85) {
+      return "Ready";
+    }
+    if (score >= 65) {
+      return "Needs Review";
+    }
+    return "High Risk";
+  }
+
   async function loadAnalysisDetails(nextAnalysisId: number) {
     const [nextOverview, nextRecommendations, nextComparison, nextCharts, nextReport] = await Promise.all([
       apiClient.getAnalysisOverview(nextAnalysisId),
@@ -443,21 +457,79 @@ export function AnalysisPage({
       <Card title="Analysis Results">
         {overview ? (
           <div className="page-stack">
-            <div className="toolbar no-margin">
-              <Button variant="secondary" onClick={onOpenIssues}>Issues</Button>
-              <Button variant="secondary" onClick={onOpenColumns}>Columns</Button>
-              <a className="button button-secondary" href={apiClient.analysisReportUrl(overview.analysis_run.id)}>Download Report</a>
-              <Button variant="secondary" disabled={running} onClick={handleCreateSuggestedPipeline}>Create Suggested Pipeline</Button>
-              <Button onClick={() => onBuildPipeline(overview.analysis_run.id)}>Build Pipeline</Button>
+            <div className="analysis-overview-grid">
+              <section className="analysis-score-panel">
+                <span className="field-label">ML Readiness</span>
+                <strong>{overview.analysis_run.readiness_score.toFixed(1)}</strong>
+                <span className={`readiness-badge readiness-${readinessBand(overview.analysis_run.readiness_score).toLowerCase().replace(" ", "-")}`}>
+                  {readinessBand(overview.analysis_run.readiness_score)}
+                </span>
+                <small>
+                  {overview.analysis_run.problem_type} / target {overview.analysis_run.target_column || "none"}
+                </small>
+              </section>
+              <section className="analysis-insight-panel">
+                <span className="field-label">Issues To Review</span>
+                <strong>{issueTotal}</strong>
+                {issueEntries.length ? (
+                  <div className="badge-row">
+                    {issueEntries.map(([severity, count]) => (
+                      <span className={`issue-badge issue-${severity}`} key={severity}>
+                        {severity}: {count}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <small>No issues detected.</small>
+                )}
+              </section>
+              <section className="analysis-insight-panel">
+                <span className="field-label">Column Profile</span>
+                <strong>{overview.column_count} columns</strong>
+                <small>{overview.row_count ?? 0} rows profiled</small>
+                <div className="compact-kv-list">
+                  {Object.entries(overview.column_type_counts).map(([type, count]) => (
+                    <span key={type}>{type}: {count}</span>
+                  ))}
+                </div>
+              </section>
+              <section className="analysis-insight-panel">
+                <span className="field-label">Recommended Fixes</span>
+                <strong>{recommendationCount}</strong>
+                <small>
+                  {recommendationCount ? "Review and add useful fixes to the pipeline." : "No automatic recommendations available."}
+                </small>
+              </section>
             </div>
-            <div className="summary-grid">
-              <pre>{JSON.stringify(overview.issue_counts, null, 2)}</pre>
-              <pre>{JSON.stringify(overview.column_type_counts, null, 2)}</pre>
+
+            <div className="action-card-grid">
+              <button className="action-card" type="button" onClick={onOpenIssues}>
+                <strong>Review Issues</strong>
+                <span>See explanations, affected columns, and suggested actions.</span>
+              </button>
+              <button className="action-card" type="button" onClick={onOpenColumns}>
+                <strong>Inspect Columns</strong>
+                <span>Open detailed profiles and per-column charts.</span>
+              </button>
+              <button className="action-card" type="button" disabled={running} onClick={handleCreateSuggestedPipeline}>
+                <strong>Create Suggested Pipeline</strong>
+                <span>Start from the generated preprocessing recommendations.</span>
+              </button>
+              <button className="action-card action-card-primary" type="button" onClick={() => onBuildPipeline(overview.analysis_run.id)}>
+                <strong>Build Pipeline</strong>
+                <span>Manually tune steps, preview changes, and export results.</span>
+              </button>
+            </div>
+            <div className="toolbar no-margin">
+              <a className="button button-secondary" href={apiClient.analysisReportUrl(overview.analysis_run.id)}>Download Report</a>
             </div>
             {comparison ? (
-              <div className="summary-grid">
-                <pre>{JSON.stringify({ drift_score: comparison.drift_score }, null, 2)}</pre>
-                <pre>{JSON.stringify(comparison.summary, null, 2)}</pre>
+              <div className="analysis-detail-panel">
+                <strong>Train/Test Drift</strong>
+                <div className="summary-grid">
+                  <pre>{JSON.stringify({ drift_score: comparison.drift_score }, null, 2)}</pre>
+                  <pre>{JSON.stringify(comparison.summary, null, 2)}</pre>
+                </div>
               </div>
             ) : null}
           </div>

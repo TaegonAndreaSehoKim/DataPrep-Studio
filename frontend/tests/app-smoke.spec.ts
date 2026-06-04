@@ -554,6 +554,10 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
   await expect(page.getByText("88.3").first()).toBeVisible();
   await expect(page.getByLabel("Current workspace context")).toContainText("Score 88.3");
   await expect(page.getByLabel("Current workspace context")).toContainText("target target");
+  await expect(page.getByText("ML Readiness")).toBeVisible();
+  await expect(page.getByText("Issues To Review")).toBeVisible();
+  await expect(page.getByText("Recommended Fixes")).toBeVisible();
+  await expect(page.getByText("Review Issues")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Analysis Report", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "DataPrep Studio Analysis Report" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Executive Summary" })).toBeVisible();
@@ -649,7 +653,7 @@ test("opens column profiles and renders selected column charts", async ({ page }
   await page.getByRole("button", { name: "Projects" }).click();
   await page.getByRole("button", { name: project.name }).click();
   await page.getByRole("button", { name: "Analysis" }).click();
-  await page.getByRole("main").getByRole("button", { name: "Columns" }).click();
+  await page.getByRole("button", { name: /Inspect Columns/ }).click();
 
   await expect(page.getByRole("heading", { name: "Columns" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "income" })).toBeVisible();

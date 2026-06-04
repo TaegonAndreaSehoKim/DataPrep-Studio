@@ -286,6 +286,123 @@ main {
   gap: 14px;
 }
 
+.analysis-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.analysis-score-panel,
+.analysis-insight-panel,
+.analysis-detail-panel {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #e1e7f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.analysis-score-panel {
+  border-color: #abd9bf;
+  background: #f3fbf6;
+}
+
+.analysis-score-panel strong {
+  color: #111827;
+  font-size: 38px;
+  line-height: 1;
+}
+
+.analysis-insight-panel strong {
+  color: #111827;
+  font-size: 24px;
+}
+
+.readiness-badge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.readiness-ready {
+  background: #e8f6ee;
+  color: #1f6f4a;
+}
+
+.readiness-needs-review {
+  background: #fff4db;
+  color: #8a5a00;
+}
+
+.readiness-high-risk {
+  background: #ffe5e5;
+  color: #a61b1b;
+}
+
+.badge-row,
+.compact-kv-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.compact-kv-list span {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #eef2f7;
+  color: #4d5e73;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.action-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.action-card {
+  display: grid;
+  gap: 6px;
+  min-height: 112px;
+  padding: 14px;
+  border: 1px solid #d9e1ec;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d2633;
+  cursor: pointer;
+  text-align: left;
+}
+
+.action-card:hover {
+  border-color: #8fb6d8;
+  background: #f7fbff;
+}
+
+.action-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.action-card strong,
+.action-card span {
+  display: block;
+}
+
+.action-card span {
+  color: #5f6f86;
+  font-size: 13px;
+}
+
+.action-card-primary {
+  border-color: #1f7a55;
+  background: #f3fbf6;
+}
+
 .score-card,
 .card {
   border: 1px solid #d9e1ec;
@@ -1014,6 +1131,8 @@ pre {
   .two-column,
   .summary-grid,
   .chart-grid,
+  .analysis-overview-grid,
+  .action-card-grid,
   .compact-form,
   .checkbox-grid,
   .override-grid,
