@@ -43,6 +43,16 @@ const navItems: { key: PageKey; label: string; icon: typeof Home }[] = [
   { key: "exports", label: "Exports", icon: PackageOpen }
 ];
 
+const workflowSteps: Array<{ key: PageKey; label: string; description: string }> = [
+  { key: "project", label: "Project", description: "Choose a workspace" },
+  { key: "upload", label: "Upload", description: "Load CSV data" },
+  { key: "analysis", label: "Analyze", description: "Profile and score" },
+  { key: "issues", label: "Review", description: "Inspect findings" },
+  { key: "pipeline", label: "Pipeline", description: "Build fixes" },
+  { key: "preview", label: "Preview", description: "Check effects" },
+  { key: "exports", label: "Export", description: "Download outputs" }
+];
+
 export default function App() {
   const [page, setPage] = useState<PageKey>("dashboard");
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -88,6 +98,52 @@ export default function App() {
   }, [refreshLoadedDatasets, selectedProjectId]);
 
   const latestByRole = (role: DatasetFile["role"]) => loadedDatasets.find((dataset) => dataset.role === role) ?? null;
+
+  const hasDataset = Boolean(latestByRole("single") || (latestByRole("train") && latestByRole("test")));
+  const hasAnalysis = Boolean(selectedAnalysisId);
+  const hasPipeline = Boolean(selectedPipelineId);
+  const hasExport = Boolean(selectedPipelineRunId);
+  const activeWorkflowIndex = Math.max(
+    0,
+    workflowSteps.findIndex((step) => step.key === page)
+  );
+  const nextAction = (() => {
+    if (!selectedProjectId) {
+      return "Create or select a project to start.";
+    }
+    if (!hasDataset) {
+      return "Upload a single CSV or a train/test pair.";
+    }
+    if (!hasAnalysis) {
+      return "Run analysis on the loaded data.";
+    }
+    if (!hasPipeline) {
+      return "Review recommendations and build a preprocessing pipeline.";
+    }
+    if (!hasExport) {
+      return "Preview the pipeline, then apply it to create exports.";
+    }
+    return "Exports are ready. Download the cleaned data and reproducible artifacts.";
+  })();
+
+  function workflowStatus(index: number, key: PageKey) {
+    if (key === "project") {
+      return selectedProjectId ? "complete" : index === activeWorkflowIndex ? "active" : "pending";
+    }
+    if (key === "upload") {
+      return hasDataset ? "complete" : index === activeWorkflowIndex ? "active" : "pending";
+    }
+    if (key === "analysis" || key === "issues" || key === "columns") {
+      return hasAnalysis ? "complete" : index === activeWorkflowIndex ? "active" : "pending";
+    }
+    if (key === "pipeline" || key === "preview") {
+      return hasPipeline ? "complete" : index === activeWorkflowIndex ? "active" : "pending";
+    }
+    if (key === "exports") {
+      return hasExport ? "complete" : index === activeWorkflowIndex ? "active" : "pending";
+    }
+    return index === activeWorkflowIndex ? "active" : "pending";
+  }
 
   function renderPage() {
     if (loading) {
@@ -239,6 +295,33 @@ export default function App() {
             New Project
           </Button>
         </header>
+        <section className="workflow-panel" aria-label="Workflow progress">
+          <div className="workflow-summary">
+            <span className="field-label">Workflow</span>
+            <strong>{nextAction}</strong>
+          </div>
+          <ol className="workflow-steps">
+            {workflowSteps.map((step, index) => {
+              const status = workflowStatus(index, step.key);
+              const isNavigable =
+                step.key === "project" ||
+                step.key === "upload" ||
+                (step.key === "analysis" && hasDataset) ||
+                ((step.key === "issues" || step.key === "pipeline") && hasAnalysis) ||
+                (step.key === "preview" && hasPipeline) ||
+                (step.key === "exports" && hasExport);
+              return (
+                <li className={`workflow-step workflow-${status}`} key={step.key}>
+                  <button type="button" disabled={!isNavigable} onClick={() => setPage(step.key)}>
+                    <span>{index + 1}</span>
+                    <strong>{step.label}</strong>
+                    <small>{step.description}</small>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
         {selectedProjectId ? (
           <section className="loaded-data-bar">
             <div>

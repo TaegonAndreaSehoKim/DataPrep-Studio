@@ -497,6 +497,8 @@ test("renders dashboard and creates a project shell", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Configurable preprocessing for tabular ML" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "DataPrep Studio" })).toBeVisible();
+  await expect(page.getByLabel("Workflow progress")).toContainText("Create or select a project to start.");
+  await expect(page.getByRole("button", { name: /Project/ }).first()).toBeVisible();
 
   await page.getByRole("button", { name: "New Project" }).click();
   await page.getByLabel("Name").fill(project.name);
@@ -506,6 +508,7 @@ test("renders dashboard and creates a project shell", async ({ page }) => {
   await expect(page.getByRole("heading", { name: project.name })).toBeVisible();
   await expect(page.getByText(dataset.filename).first()).toBeVisible();
   await expect(page.getByText("5 rows / 4 columns").first()).toBeVisible();
+  await expect(page.getByLabel("Workflow progress")).toContainText("Run analysis on the loaded data.");
 });
 
 test("opens pipeline builder and shows config import affordance", async ({ page }) => {
@@ -513,7 +516,7 @@ test("opens pipeline builder and shows config import affordance", async ({ page 
 
   await page.getByRole("button", { name: "Projects" }).click();
   await page.getByRole("button", { name: project.name }).click();
-  await page.getByRole("button", { name: "Pipeline" }).click();
+  await page.getByRole("navigation").getByRole("button", { name: "Pipeline" }).click();
 
   await expect(page.getByRole("heading", { name: "Pipeline Overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Import Config" })).toBeVisible();
@@ -538,6 +541,7 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
   await expect(page.getByText(`Upload complete: ${uploadedDataset.filename}`)).toBeVisible();
   await expect(page.getByText("Austin")).toBeVisible();
   await expect(page.getByText(uploadedDataset.filename).first()).toBeVisible();
+  await expect(page.getByLabel("Workflow progress")).toContainText("Run analysis on the loaded data.");
 
   await page.getByRole("button", { name: "Run Analysis" }).click();
   await expect(page.getByRole("heading", { name: "Run Analysis" })).toBeVisible();
