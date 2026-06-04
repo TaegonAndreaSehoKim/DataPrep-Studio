@@ -86,6 +86,11 @@ export function AnalysisPage({
     return "High Risk";
   }
 
+  function recommendationActionLabel(step: SuggestedPipelineStep) {
+    const columns = step.columns.length ? step.columns.join(", ") : "selected columns";
+    return `Add ${step.operation_type} for ${columns}`;
+  }
+
   async function loadAnalysisDetails(nextAnalysisId: number) {
     const [nextOverview, nextRecommendations, nextComparison, nextCharts, nextReport] = await Promise.all([
       apiClient.getAnalysisOverview(nextAnalysisId),
@@ -552,21 +557,29 @@ export function AnalysisPage({
 
       <Card title="Preprocessing Recommendations">
         {preprocessingRecommendations?.recommendations.length ? (
-          <div className="list">
+          <div className="recommendation-grid">
             {preprocessingRecommendations.recommendations.map((recommendation, index) => (
-              <div className="issue-card" key={`${recommendation.category}-${index}`}>
+              <div className="recommendation-card" key={`${recommendation.category}-${index}`}>
                 <div className="issue-content">
-                  <strong>{recommendation.title}</strong>
+                  <div className="recommendation-card-header">
+                    <strong>{recommendation.title}</strong>
+                    <span className={`issue-badge issue-${recommendation.priority === "critical" ? "critical" : recommendation.priority === "high" ? "warning" : "info"}`}>
+                      {recommendation.priority}
+                    </span>
+                  </div>
                   <p>{recommendation.rationale}</p>
                   {recommendation.affected_columns.length ? (
                     <small>Columns: {recommendation.affected_columns.join(", ")}</small>
                   ) : null}
                   {recommendation.suggested_step ? (
                     <>
-                      <small>
-                        Suggested step: {recommendation.suggested_step.operation_type} / {recommendation.suggested_step.columns.length} columns
-                      </small>
-                      <div className="toolbar no-margin">
+                      <div className="recommendation-step-summary">
+                        <span>Adds 1 pipeline step</span>
+                        <span>{recommendation.suggested_step.operation_type}</span>
+                        <span>{recommendation.suggested_step.columns.length ? recommendation.suggested_step.columns.join(", ") : "No fixed columns"}</span>
+                        <span>Preview before applying</span>
+                      </div>
+                      <div className="toolbar no-margin wrap">
                         <Button
                           type="button"
                           variant="secondary"
@@ -576,7 +589,7 @@ export function AnalysisPage({
                             source_category: recommendation.category
                           })}
                         >
-                          Add to Pipeline
+                          {recommendationActionLabel(recommendation.suggested_step)}
                         </Button>
                       </div>
                     </>
@@ -584,9 +597,6 @@ export function AnalysisPage({
                     <small>Manual review recommended before preprocessing.</small>
                   )}
                 </div>
-                <span className={`issue-badge issue-${recommendation.priority === "critical" ? "critical" : recommendation.priority === "high" ? "warning" : "info"}`}>
-                  {recommendation.priority}
-                </span>
               </div>
             ))}
           </div>

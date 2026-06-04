@@ -591,7 +591,8 @@ test("loads a recommendation into pipeline step parameters", async ({ page }) =>
   await page.getByRole("button", { name: "Projects" }).click();
   await page.getByRole("button", { name: project.name }).click();
   await page.getByRole("button", { name: "Analysis" }).click();
-  await page.getByRole("button", { name: "Add to Pipeline" }).click();
+  await expect(page.getByText("Preview before applying")).toBeVisible();
+  await page.getByRole("button", { name: "Add numeric_imputation for income" }).click();
 
   await expect(page.getByRole("heading", { name: "Pipeline Overview" })).toBeVisible();
   await expect(page.getByText("Added recommendation to pipeline: numeric_imputation")).toBeVisible();
@@ -632,7 +633,7 @@ test("adds an issue suggestion to the selected pipeline", async ({ page }) => {
   await page.getByRole("button", { name: "Projects" }).click();
   await page.getByRole("button", { name: project.name }).click();
   await page.getByRole("button", { name: "Analysis" }).click();
-  await page.getByRole("button", { name: "Add to Pipeline" }).click();
+  await page.getByRole("button", { name: "Add numeric_imputation for income" }).click();
   await expect(page.getByText("Added recommendation to pipeline: numeric_imputation")).toBeVisible();
 
   await page.getByRole("navigation").getByRole("button", { name: "Issues" }).click();

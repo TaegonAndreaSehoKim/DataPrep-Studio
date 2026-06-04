@@ -681,6 +681,47 @@ main {
   gap: 8px;
 }
 
+.recommendation-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.recommendation-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #d9e1ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.recommendation-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.recommendation-card-header strong {
+  color: #111827;
+  font-size: 16px;
+}
+
+.recommendation-step-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.recommendation-step-summary span {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #eef2f7;
+  color: #3d4d61;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .suggestion-box {
   display: grid;
   gap: 4px;
