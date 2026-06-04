@@ -509,6 +509,9 @@ test("renders dashboard and creates a project shell", async ({ page }) => {
   await expect(page.getByText(dataset.filename).first()).toBeVisible();
   await expect(page.getByText("5 rows / 4 columns").first()).toBeVisible();
   await expect(page.getByLabel("Workflow progress")).toContainText("Run analysis on the loaded data.");
+  await expect(page.getByLabel("Current workspace context")).toContainText("Project #101");
+  await expect(page.getByLabel("Current workspace context")).toContainText("smoke.csv");
+  await expect(page.getByLabel("Current workspace context")).toContainText("Not selected");
 });
 
 test("opens pipeline builder and shows config import affordance", async ({ page }) => {
@@ -549,6 +552,8 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
 
   await page.getByRole("button", { name: "Run Analysis" }).click();
   await expect(page.getByText("88.3").first()).toBeVisible();
+  await expect(page.getByLabel("Current workspace context")).toContainText("Score 88.3");
+  await expect(page.getByLabel("Current workspace context")).toContainText("target target");
   await expect(page.getByRole("heading", { name: "Analysis Report", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "DataPrep Studio Analysis Report" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Executive Summary" })).toBeVisible();

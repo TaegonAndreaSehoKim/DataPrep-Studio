@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BarChart3, Columns3, FileUp, Home, ListChecks, PackageOpen, Play, SlidersHorizontal } from "lucide-react";
 
 import { apiClient } from "./api/client";
-import type { Dashboard, DatasetFile, SuggestedPipelineStep } from "./api/types";
+import type { AnalysisOverview, Dashboard, DatasetFile, Pipeline, SuggestedPipelineStep } from "./api/types";
 import { Button } from "./components/Button";
 import { ErrorState } from "./components/ErrorState";
 import { LoadingState } from "./components/LoadingState";
@@ -62,6 +62,8 @@ export default function App() {
   const [selectedPipelineRunId, setSelectedPipelineRunId] = useState<number | null>(null);
   const [pendingStepDraft, setPendingStepDraft] = useState<SuggestedPipelineStep | null>(null);
   const [loadedDatasets, setLoadedDatasets] = useState<DatasetFile[]>([]);
+  const [selectedAnalysisOverview, setSelectedAnalysisOverview] = useState<AnalysisOverview | null>(null);
+  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,12 +99,35 @@ export default function App() {
     refreshLoadedDatasets(selectedProjectId);
   }, [refreshLoadedDatasets, selectedProjectId]);
 
+  useEffect(() => {
+    if (!selectedAnalysisId) {
+      setSelectedAnalysisOverview(null);
+      return;
+    }
+    apiClient
+      .getAnalysisOverview(selectedAnalysisId)
+      .then(setSelectedAnalysisOverview)
+      .catch(() => setSelectedAnalysisOverview(null));
+  }, [selectedAnalysisId]);
+
+  useEffect(() => {
+    if (!selectedPipelineId) {
+      setSelectedPipeline(null);
+      return;
+    }
+    apiClient
+      .getPipeline(selectedPipelineId)
+      .then(setSelectedPipeline)
+      .catch(() => setSelectedPipeline(null));
+  }, [selectedPipelineId]);
+
   const latestByRole = (role: DatasetFile["role"]) => loadedDatasets.find((dataset) => dataset.role === role) ?? null;
 
   const hasDataset = Boolean(latestByRole("single") || (latestByRole("train") && latestByRole("test")));
   const hasAnalysis = Boolean(selectedAnalysisId);
   const hasPipeline = Boolean(selectedPipelineId);
   const hasExport = Boolean(selectedPipelineRunId);
+  const selectedProject = dashboard?.recent_projects.find((project) => project.id === selectedProjectId) ?? null;
   const activeWorkflowIndex = Math.max(
     0,
     workflowSteps.findIndex((step) => step.key === page)
@@ -323,25 +348,42 @@ export default function App() {
           </ol>
         </section>
         {selectedProjectId ? (
-          <section className="loaded-data-bar">
+          <section className="loaded-data-bar context-bar" aria-label="Current workspace context">
             <div>
-              <span className="field-label">Loaded Data</span>
-              <strong>{latestByRole("single")?.filename ?? "No single dataset"}</strong>
+              <span className="field-label">Project</span>
+              <strong>{selectedProject?.name ?? `Project #${selectedProjectId}`}</strong>
+              <small>{hasExport ? `Export run #${selectedPipelineRunId}` : "Local preprocessing workspace"}</small>
+            </div>
+            <div>
+              <span className="field-label">Data</span>
+              <strong>{latestByRole("single")?.filename ?? latestByRole("train")?.filename ?? "No dataset loaded"}</strong>
               <small>
                 {latestByRole("single")
                   ? `${latestByRole("single")?.row_count} rows / ${latestByRole("single")?.column_count} columns`
-                  : "Upload a single CSV to run standard analysis."}
+                  : latestByRole("train") && latestByRole("test")
+                    ? `train ${latestByRole("train")?.row_count} rows / test ${latestByRole("test")?.row_count} rows`
+                    : "Upload CSV data to continue."}
               </small>
             </div>
             <div>
-              <span className="field-label">Train</span>
-              <strong>{latestByRole("train")?.filename ?? "Not loaded"}</strong>
-              <small>{latestByRole("train") ? `${latestByRole("train")?.row_count} rows` : "Optional train/test mode"}</small>
+              <span className="field-label">Analysis</span>
+              <strong>
+                {selectedAnalysisOverview
+                  ? `Score ${selectedAnalysisOverview.analysis_run.readiness_score.toFixed(1)}`
+                  : selectedAnalysisId
+                    ? `Analysis #${selectedAnalysisId}`
+                    : "Not selected"}
+              </strong>
+              <small>
+                {selectedAnalysisOverview
+                  ? `${selectedAnalysisOverview.column_count ?? 0} columns / target ${selectedAnalysisOverview.analysis_run.target_column || "none"}`
+                  : "Run or select an analysis."}
+              </small>
             </div>
             <div>
-              <span className="field-label">Test</span>
-              <strong>{latestByRole("test")?.filename ?? "Not loaded"}</strong>
-              <small>{latestByRole("test") ? `${latestByRole("test")?.row_count} rows` : "Optional train/test mode"}</small>
+              <span className="field-label">Pipeline</span>
+              <strong>{selectedPipeline?.name ?? (selectedPipelineId ? `Pipeline #${selectedPipelineId}` : "Not selected")}</strong>
+              <small>{selectedPipeline ? `${selectedPipeline.steps.length} steps / ${selectedPipeline.status}` : "Create from recommendations or manually."}</small>
             </div>
             <div className="toolbar no-margin">
               <Button variant="secondary" onClick={() => setPage("upload")}>

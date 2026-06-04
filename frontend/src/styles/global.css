@@ -229,7 +229,7 @@ main {
 
 .loaded-data-bar {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(0, 1.3fr) auto;
   gap: 14px;
   align-items: center;
   margin-bottom: 24px;
@@ -237,6 +237,10 @@ main {
   border: 1px solid #d9e1ec;
   border-radius: 8px;
   background: #fff;
+}
+
+.context-bar {
+  border-left: 4px solid #1f7a55;
 }
 
 .loaded-data-bar > div {
