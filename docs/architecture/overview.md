@@ -13,9 +13,9 @@ React/Vite frontend
 
 ## Backend
 
-The backend owns persistence, CSV parsing, profiling, issue detection, preprocessing, preview, export generation, and download endpoints.
+The backend owns persistence, CSV parsing, profiling, issue detection, preprocessing recommendations, preprocessing, preview, export generation, and download endpoints.
 
-Planned backend modules:
+Important backend modules:
 
 - `app/main.py` for FastAPI app setup
 - `app/config.py` for pydantic-settings configuration
@@ -23,19 +23,21 @@ Planned backend modules:
 - `app/models.py` for ORM models
 - `app/schemas.py` for request and response schemas
 - `app/routers/` for API routes
-- `app/services/` for profiling, issue detection, pipeline execution, and exports
+- `app/services/` for profiling, issue detection, readiness scoring, drift detection, recommendations, chart payloads, pipeline execution, preview, reports, and exports
 
 ## Frontend
 
 The frontend is a practical developer-tool interface for the core workflow.
 
-Planned frontend modules:
+Important frontend modules:
 
 - `src/api/client.ts` for API calls
 - `src/api/types.ts` for shared response types
 - `src/pages/` for workflow pages
 - `src/components/` for reusable UI pieces
 - `src/styles/global.css` for app styling
+
+Current frontend UX surfaces include workflow progress guidance, current workspace context, analysis summary cards, recommendation action cards, inline printable analysis report viewing, and a pipeline recipe summary.
 
 ## Persistence
 

@@ -8,17 +8,20 @@ It is designed for users who want to inspect data quality, choose transformation
 
 1. Create a project.
 2. Upload one CSV dataset or a train/test CSV pair.
-3. Confirm the upload completion state and current loaded dataset in the workspace header.
-4. Open analysis directly from the upload success state when the dataset is ready.
-5. Review suggested analysis setup for target column, problem type, missing value tokens, ignored columns, and column type overrides.
-6. Save reusable analysis setup when the same dataset rules should be rerun, and update or delete saved setup as it changes.
-7. Run dataset analysis.
-8. Inspect readiness score, notable preprocessing recommendations, issues, charts, and column profiles, or download a rich markdown analysis report.
-9. Add an accepted preprocessing recommendation directly into the pipeline, with added recommendation and issue-origin steps summarized for review, or build a pipeline manually.
-10. Generate a suggested pipeline draft, import an exported preprocessing config, or configure operation parameters manually.
-11. Validate the pipeline against selected columns, profile types, and step-to-step column availability, with affected-step feedback, then preview before/after summaries, column-level diffs, and sample rows.
-12. Apply the pipeline.
-13. Export cleaned data, config, report, and code.
+3. Use the workflow progress bar to confirm the current stage and next recommended action.
+4. Confirm the upload completion state and current workspace context, including project, loaded data, selected analysis, and selected pipeline.
+5. Open analysis directly from the upload success state when the dataset is ready.
+6. Review suggested analysis setup for target column, problem type, missing value tokens, ignored columns, and column type overrides.
+7. Save reusable analysis setup when the same dataset rules should be rerun, and update or delete saved setup as it changes.
+8. Run dataset analysis.
+9. Inspect the analysis summary first: readiness band, issue counts, column profile counts, recommended fixes, and next action cards.
+10. Review notable preprocessing recommendations, issues, charts, and column profiles, or read and print the inline analysis report.
+11. Add an accepted preprocessing recommendation directly into the pipeline with a clear action label, or build a pipeline manually.
+12. Review the pipeline recipe summary to understand what the enabled steps will do before preview or apply.
+13. Generate a suggested pipeline draft, import an exported preprocessing config, or configure operation parameters manually.
+14. Validate the pipeline against selected columns, profile types, and step-to-step column availability, with affected-step feedback, then preview before/after summaries, column-level diffs, and sample rows.
+15. Apply the pipeline.
+16. Export cleaned data, config, report, and code.
 
 ## MVP Feature Areas
 
@@ -32,7 +35,11 @@ It is designed for users who want to inspect data quality, choose transformation
 - Chart visualizations
 - Train/test comparison
 - Pipeline builder
+- Workflow progress and current workspace context
 - Issue-to-step suggestions
+- Inline printable analysis report
+- Recommendation action cards
+- Pipeline recipe summary
 - Preprocessing config import and export metadata
 - Pipeline validation
 - Transformation preview with before/after samples and column diffs

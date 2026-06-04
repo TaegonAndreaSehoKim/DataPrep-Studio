@@ -3,13 +3,13 @@
 ## Purpose
 
 This file gives future coding agents a practical operating guide for `DataPrep Studio`.
-It reflects the project state at the start of the MVP implementation.
+It reflects the project state after the local MVP became runnable end to end.
 
 DataPrep Studio is a configurable data quality and preprocessing workbench for tabular machine learning workflows. It is not AutoML, not a black-box data repair tool, and not an AI/LLM application.
 
 ## Project Snapshot
 
-The intended MVP is a local full-stack app with:
+The current MVP is a local full-stack app with:
 
 - FastAPI backend under `backend/`
 - React, Vite, and TypeScript frontend under `frontend/`
@@ -27,30 +27,30 @@ The intended MVP is a local full-stack app with:
 - generated pandas-style preprocessing code export
 - pytest coverage for backend data-quality and transformation behavior
 - frontend build validation
+- Playwright browser smoke coverage for the core workflow
+- workflow progress, workspace context, printable analysis report, recommendation action cards, and pipeline recipe UX
 
 This is local MVP software intended for demos, portfolio discussion, and future iteration. Do not optimize prematurely for production deployment, multi-user collaboration, or cloud storage.
 
 ## Current Development Stage
 
-The project is in the initial implementation stage.
+The project is in a working local MVP stage.
 
 What exists now:
 
 - Product requirements in `DataPrep Studio.txt`
 - This operating guide
+- backend and frontend implementations for the core workflow
+- persisted projects, datasets, configs, analysis runs, profiles, issues, pipelines, steps, and pipeline runs
+- analysis recommendations, charts, inline/downloadable analysis reports, pipeline preview/apply, and export artifacts
+- backend pytest coverage and frontend Playwright smoke coverage
 
-What should be built first:
+What should be improved next:
 
-- repository structure
-- backend config, database, models, and schemas
-- health endpoint
-- project CRUD
-- CSV upload and preview
-- profiling, issue detection, readiness score, and drift detection
-- pipeline operations, preview, apply, and exports
-- backend tests
-- frontend API client, pages, and pipeline builder
-- README files
+- train/test browser smoke coverage
+- richer failure-state and empty-state coverage
+- more operation-specific UX affordances where manual parameters are still hard to understand
+- documentation updates whenever workflow, API, setup, or export behavior changes
 
 What is explicitly out of scope for the MVP:
 
@@ -181,21 +181,18 @@ Reports and generated code should explicitly state train-only fitting behavior.
 
 When choosing what to improve next, bias toward these:
 
-- create the monorepo structure
-- implement backend foundations and tests first
-- make CSV upload, preview, and analysis reliable
-- implement leakage-safe pipeline behavior before frontend polish
+- keep CSV upload, preview, and analysis reliable
+- protect leakage-safe pipeline behavior
 - keep export artifacts honest and reproducible
+- keep the workflow progress, context bar, recommendation cards, and pipeline recipe summary easy to understand
 - keep README instructions current
+- expand tests around train/test mode and failure states
 
 Lower priority for now:
 
-- visual polish beyond a clean usable interface
-- advanced charts
 - auth
 - cloud deployment
 - model training
-- browser-level frontend test suites
 - complex data connectors
 
 ## Known Risks and Footguns
@@ -306,15 +303,11 @@ For most tasks:
 
 Reasonable next milestones:
 
-- scaffold backend and frontend structure
-- implement health, project CRUD, CSV upload, and preview
-- implement profiler and issue detector
-- implement readiness score and train/test drift checks
-- implement pipeline operations with train-only fitting rules
-- implement preview, apply, and exports
-- add backend fixture CSVs and pytest coverage
-- implement frontend pages for the core workflow
-- write README setup and demo flow documentation
+- add browser smoke coverage for train/test analysis and pipeline application
+- broaden failure-state tests for invalid uploads, invalid pipeline params, missing columns, and failed exports
+- refine operation-specific parameter help in the pipeline builder
+- keep documentation current with implemented workflow and API behavior
+- prepare demo screenshots or walkthrough material once UI stabilizes
 
 ## Default Mindset
 

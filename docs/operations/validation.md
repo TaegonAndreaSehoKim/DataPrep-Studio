@@ -24,7 +24,6 @@ Expected health check:
 GET http://127.0.0.1:8000/health
 ```
 
-Expected scaffold response:
 Expected response:
 
 ```json
@@ -74,20 +73,21 @@ npm run dev
 5. Configure target, missing tokens, ignored columns, and optional type overrides.
 6. Save, update, or delete setup when it should be reused or retired.
 7. Run analysis with a target column.
-8. Inspect score, issues, charts, and columns.
-9. Create a pipeline.
-10. Add transformation steps manually or from type-aware issue suggestions.
-11. Validate the pipeline and review unsupported type, missing-column, or step dependency warnings.
-12. Preview the pipeline.
-13. Apply the pipeline.
-14. Download export artifacts.
+8. Inspect the workflow progress bar and current workspace context.
+9. Inspect readiness score, analysis summary, recommendations, issues, charts, columns, and the inline printable analysis report.
+10. Add a recommended preprocessing action to a pipeline, generate a suggested pipeline, import a config, or create manual steps.
+11. Review the pipeline recipe summary and recommendation-origin steps.
+12. Validate the pipeline and review unsupported type, missing-column, or step dependency warnings.
+13. Preview the pipeline.
+14. Apply the pipeline.
+15. Download export artifacts.
 
 Current validation checkpoint:
 
 ```text
-Backend pytest: 38 passed
+Backend pytest: 39 passed
 Frontend build: passing
-Frontend Playwright smoke: 3 passed
+Frontend Playwright smoke: 7 passed
 Backend smoke demo: passing
 ```
 

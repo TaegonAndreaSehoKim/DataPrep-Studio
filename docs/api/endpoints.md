@@ -1,6 +1,6 @@
 # API Endpoints
 
-This file tracks the planned API surface for the MVP.
+This file tracks the implemented API surface for the local MVP.
 
 ## Health
 

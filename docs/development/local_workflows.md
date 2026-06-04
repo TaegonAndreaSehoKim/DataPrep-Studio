@@ -28,10 +28,19 @@ GET /datasets/{dataset_file_id}/preview
 POST /projects/{project_id}/analysis/run
 GET /analysis/{analysis_id}/overview
 GET /analysis/{analysis_id}/columns
+GET /analysis/{analysis_id}/columns/{column_name}/charts
 GET /analysis/{analysis_id}/issues
+GET /analysis/{analysis_id}/preprocessing-recommendations
+GET /analysis/{analysis_id}/charts
+GET /analysis/{analysis_id}/download/report
 POST /projects/{project_id}/pipelines
+POST /projects/{project_id}/pipelines/from-analysis/{analysis_id}
+POST /projects/{project_id}/pipelines/from-config
 POST /pipelines/{pipeline_id}/steps
+POST /pipelines/{pipeline_id}/validate
+POST /pipelines/{pipeline_id}/steps/from-issue/{issue_id}
 POST /pipelines/{pipeline_id}/preview
+POST /pipelines/{pipeline_id}/preview/charts
 POST /pipelines/{pipeline_id}/apply
 GET /pipeline-runs/{pipeline_run_id}/download/config
 GET /pipeline-runs/{pipeline_run_id}/download/report
@@ -64,6 +73,7 @@ npm run dev
 
 The frontend includes the main workflow pages and a centralized API client. Project, upload, analysis, issue, column, pipeline, preview, and export pages are wired to backend APIs.
 Analysis charts are rendered with Recharts from backend chart API data.
+The app also includes workflow progress guidance, a current workspace context bar, inline printable analysis reports, recommendation action cards, and a pipeline recipe summary.
 
 ## Frontend Build
 
@@ -79,7 +89,7 @@ cd frontend
 npm run test:e2e
 ```
 
-The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, CSV upload, upload error display, analysis run, issue suggestions, column charts, recommendation-to-pipeline, preview, apply, and export navigation.
+The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, workflow progress guidance, workspace context, CSV upload, upload error display, analysis run, inline report display, recommendation cards, issue suggestions, column charts, recommendation-to-pipeline, pipeline recipe summary, preview, apply, and export navigation.
 
 ## Local Storage
 

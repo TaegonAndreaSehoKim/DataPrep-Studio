@@ -16,15 +16,17 @@ Core capabilities implemented in the MVP:
 
 - Create local data preparation projects.
 - Upload either one CSV dataset or a train/test CSV pair.
-- See the currently loaded dataset in the workspace header and move from upload completion directly into analysis.
+- See workflow progress, current workspace context, loaded data, selected analysis, and selected pipeline throughout the app.
+- Move from upload completion directly into analysis.
 - Get suggested analysis setup for target column, problem type, missing tokens, type overrides, and ignored ID-like columns.
 - Select a target column and problem type.
 - Save, update, and delete reusable analysis setup with missing tokens, ignored columns, and column type overrides.
 - Profile columns for type, missingness, cardinality, distributions, and warnings.
 - Detect ML-readiness issues such as missing values, duplicates, outliers, leakage candidates, high-cardinality features, target imbalance, and train/test drift.
 - Highlight analysis-specific preprocessing recommendations from notable findings.
-- Download rich markdown analysis reports with dataset context, readiness score, issues, column profiles, recommendations, chart data, and drift details.
-- Add a recommended preprocessing step directly into the pipeline builder, with recommendation and issue-origin summaries shown on the pipeline.
+- View, print, and download rich markdown analysis reports with dataset context, readiness score, issues, column profiles, recommendations, chart data, and drift details.
+- Add a recommended preprocessing step directly into the pipeline builder with clear action labels, recommendation context, and issue-origin summaries.
+- Review a pipeline recipe summary that explains what enabled steps will do before previewing or applying.
 - Visualize analysis, column-level summaries, and pipeline preview changes with charts.
 - Convert detected issues into type-aware suggested preprocessing steps.
 - Generate a suggested preprocessing pipeline draft from an analysis run.
@@ -103,22 +105,23 @@ The frontend defaults to:
 http://127.0.0.1:8000
 ```
 
-The current MVP includes a runnable FastAPI backend and Vite frontend workflow shell.
+The current MVP includes a runnable FastAPI backend and Vite frontend workflow.
 
 ## Demo Flow
 
 1. Create a project.
 2. Upload a CSV dataset or train/test CSV pair.
-3. Confirm the loaded data status in the workspace header.
+3. Confirm the workflow progress and loaded workspace context.
 4. Select the target column and problem type.
 5. Optionally save the setup for reuse.
 6. Run analysis.
-7. Review readiness score, issues, charts, and column profiles.
+7. Review readiness score, issue counts, recommendations, charts, column profiles, and the inline printable analysis report.
 8. Create a preprocessing pipeline.
-9. Add and configure transformation steps, or add suggested steps from issues.
-10. Validate and preview before/after effects.
-11. Apply the pipeline.
-12. Download cleaned data, config, report, and generated code.
+9. Add and configure transformation steps, or add suggested steps from recommendations and issues.
+10. Review the pipeline recipe summary.
+11. Validate and preview before/after effects.
+12. Apply the pipeline.
+13. Download cleaned data, config, report, and generated code.
 
 ## Validation
 
@@ -164,11 +167,12 @@ Built so far:
 - user-controlled analysis setup for saved configs, update/delete, missing value tokens, ignored columns, and column type overrides
 - dataset setup suggestion API and frontend application flow
 - analysis, column, and preview chart APIs with Recharts-based frontend visualizations
-- rich markdown analysis report download
+- inline printable rich markdown analysis report display and download
 - type-aware issue-to-pipeline-step suggestions
 - suggested pipeline draft generation from analysis issues
 - pipeline CRUD, step CRUD, reorder, toggle, operation metadata, column-aware validation, preview, apply, and exports
 - exported preprocessing config import back into editable pipeline drafts
+- workflow progress guidance, workspace context bar, recommendation action cards, and pipeline recipe summary
 - versioned preprocessing config metadata for exported pipeline names, operation lists, summaries, and train-only fit notes
 - generated cleaned CSV, config JSON, markdown report, and Python code artifacts
 - React/Vite frontend workflow for projects, upload, analysis, issues, columns, pipelines, preview, and exports
@@ -176,8 +180,8 @@ Built so far:
 
 Next implementation milestones:
 
-- UI polish after manual workflow screenshots
 - broader browser coverage for train/test mode and additional failure states
+- operation-specific parameter help and demo walkthrough polish
 
 ## Development Workflow
 
