@@ -55,6 +55,10 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
+  deleteProject: (projectId: number) =>
+    request<void>(`/projects/${projectId}`, {
+      method: "DELETE"
+    }),
   listProjectDatasets: (projectId: number) => request<DatasetFile[]>(`/projects/${projectId}/datasets`),
   getDatasetSetupSuggestions: (datasetId: number) => request<DatasetSetupSuggestion>(`/datasets/${datasetId}/setup-suggestions`),
   listDatasetConfigs: (projectId: number) => request<DatasetConfig[]>(`/projects/${projectId}/dataset-configs`),

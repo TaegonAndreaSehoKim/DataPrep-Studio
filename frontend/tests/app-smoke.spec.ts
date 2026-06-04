@@ -104,6 +104,7 @@ async function mockApi(page: Page) {
   let currentAnalysis = analysis;
   let createdPipeline: typeof pipeline | null = null;
   let appliedRun: typeof pipelineRun | null = null;
+  let projectDeleted = false;
 
   await page.route(`${apiBase}/**`, async (route) => {
     const request = route.request();
@@ -126,7 +127,7 @@ async function mockApi(page: Page) {
     }
 
     if (method === "GET" && url.pathname === "/projects") {
-      await route.fulfill({ json: [project] });
+      await route.fulfill({ json: projectDeleted ? [] : [project] });
       return;
     }
 
@@ -136,7 +137,17 @@ async function mockApi(page: Page) {
     }
 
     if (method === "GET" && url.pathname === `/projects/${project.id}`) {
+      if (projectDeleted) {
+        await route.fulfill({ status: 404, json: { detail: "Project not found" } });
+        return;
+      }
       await route.fulfill({ json: project });
+      return;
+    }
+
+    if (method === "DELETE" && url.pathname === `/projects/${project.id}`) {
+      projectDeleted = true;
+      await route.fulfill({ status: 204, body: "" });
       return;
     }
 
@@ -525,6 +536,20 @@ test("opens pipeline builder and shows config import affordance", async ({ page 
   await expect(page.getByRole("heading", { name: "Import Config" })).toBeVisible();
   await expect(page.getByLabel("preprocessing_config.json")).toBeVisible();
   await expect(page.getByRole("button", { name: "Import Config" })).toBeDisabled();
+});
+
+test("deletes an existing project from the project list", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Projects" }).click();
+  await expect(page.getByText(project.name)).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByText("Delete this project and its local records?")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm Delete" }).click();
+
+  await expect(page.getByText(project.name)).not.toBeVisible();
+  await expect(page.getByText("Create a project to upload and analyze datasets.")).toBeVisible();
 });
 
 test("uploads a CSV and runs analysis from the upload completion state", async ({ page }) => {

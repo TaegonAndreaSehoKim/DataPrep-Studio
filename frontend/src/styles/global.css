@@ -613,6 +613,52 @@ main {
   border-color: #9fb1c8;
 }
 
+.project-row {
+  align-items: center;
+}
+
+.row-main-button {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+
+.row-actions,
+.danger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.danger-actions span {
+  color: #8a3a00;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.danger-zone {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #f0b6b6;
+  border-radius: 8px;
+  background: #fff8f7;
+}
+
+.danger-zone strong,
+.danger-zone span {
+  display: block;
+}
+
+.danger-zone span {
+  margin-top: 4px;
+  color: #7a4c4c;
+}
+
 .step-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1256,6 +1302,7 @@ pre {
 
   .topbar,
   .intro-band,
+  .danger-zone,
   .workflow-summary {
     align-items: flex-start;
     flex-direction: column;

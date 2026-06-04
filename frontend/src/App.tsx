@@ -95,6 +95,21 @@ export default function App() {
       .catch((err: Error) => setError(err.message));
   }, []);
 
+  const handleProjectDeleted = useCallback((projectId: number) => {
+    if (selectedProjectId === projectId) {
+      setSelectedProjectId(null);
+      setSelectedAnalysisId(null);
+      setSelectedPipelineId(null);
+      setSelectedPipelineRunId(null);
+      setPendingStepDraft(null);
+      setLoadedDatasets([]);
+      setSelectedAnalysisOverview(null);
+      setSelectedPipeline(null);
+      setPage("projects");
+    }
+    refreshDashboard();
+  }, [refreshDashboard, selectedProjectId]);
+
   useEffect(() => {
     refreshLoadedDatasets(selectedProjectId);
   }, [refreshLoadedDatasets, selectedProjectId]);
@@ -183,7 +198,7 @@ export default function App() {
       case "dashboard":
         return <DashboardPage dashboard={dashboard} onCreateProject={() => setPage("create")} onSelectProject={chooseProject} />;
       case "projects":
-        return <ProjectListPage onCreateProject={() => setPage("create")} onSelectProject={chooseProject} />;
+        return <ProjectListPage onCreateProject={() => setPage("create")} onSelectProject={chooseProject} onProjectDeleted={handleProjectDeleted} />;
       case "create":
         return (
           <ProjectCreatePage
@@ -206,6 +221,7 @@ export default function App() {
               setSelectedPipelineId(pipelineId);
               setPage("pipeline");
             }}
+            onProjectDeleted={handleProjectDeleted}
           />
         );
       case "upload":

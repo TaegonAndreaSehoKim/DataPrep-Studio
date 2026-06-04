@@ -1,9 +1,13 @@
+import shutil
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.deps import get_db
-from app.models import Project, utc_now
+from app.models import PipelineRun, Project, TrainTestComparison, utc_now
 from app.schemas import ProjectCreate, ProjectOut, ProjectUpdate
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -51,5 +55,13 @@ def delete_project(project_id: int, db: Session = Depends(get_db)) -> None:
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    db.query(PipelineRun).filter(PipelineRun.project_id == project_id).delete(synchronize_session=False)
+    db.query(TrainTestComparison).filter(TrainTestComparison.project_id == project_id).delete(synchronize_session=False)
     db.delete(project)
     db.commit()
+
+    settings = get_settings()
+    for base_dir in [settings.upload_dir, settings.export_dir]:
+        project_dir = Path(base_dir) / f"project_{project_id}"
+        if project_dir.exists():
+            shutil.rmtree(project_dir)

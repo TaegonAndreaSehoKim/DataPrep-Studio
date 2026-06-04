@@ -12,17 +12,21 @@ export function ProjectDetailPage({
   projectId,
   onUpload,
   onAnalyze,
-  onPipeline
+  onPipeline,
+  onProjectDeleted
 }: {
   projectId: number | null;
   onUpload: () => void;
   onAnalyze: (analysisId: number) => void;
   onPipeline: (pipelineId: number) => void;
+  onProjectDeleted: (projectId: number) => void;
 }) {
   const [project, setProject] = useState<Project | null>(null);
   const [datasets, setDatasets] = useState<DatasetFile[]>([]);
   const [analyses, setAnalyses] = useState<AnalysisRun[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(Boolean(projectId));
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +50,22 @@ export function ProjectDetailPage({
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, [projectId]);
+
+  async function deleteCurrentProject() {
+    if (!projectId) {
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      await apiClient.deleteProject(projectId);
+      onProjectDeleted(projectId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete project");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (!projectId) {
     return <EmptyState title="No project selected" message="Choose or create a project to continue." />;
@@ -122,6 +142,29 @@ export function ProjectDetailPage({
         ) : (
           <EmptyState title="No pipelines" message="Build a preprocessing pipeline after analysis." />
         )}
+      </Card>
+
+      <Card title="Danger Zone">
+        <div className="danger-zone">
+          <div>
+            <strong>Delete this project</strong>
+            <span>Removes the project, related analysis records, pipelines, and local project artifacts from this MVP workspace.</span>
+          </div>
+          {confirmingDelete ? (
+            <div className="toolbar no-margin wrap">
+              <Button variant="secondary" disabled={deleting} onClick={() => setConfirmingDelete(false)}>
+                Cancel
+              </Button>
+              <Button variant="ghost" disabled={deleting} onClick={deleteCurrentProject}>
+                {deleting ? "Deleting" : "Confirm Delete"}
+              </Button>
+            </div>
+          ) : (
+            <Button variant="ghost" disabled={deleting} onClick={() => setConfirmingDelete(true)}>
+              Delete Project
+            </Button>
+          )}
+        </div>
       </Card>
     </div>
   );

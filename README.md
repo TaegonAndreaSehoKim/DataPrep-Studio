@@ -14,7 +14,7 @@ CSV dataset -> profile -> diagnose issues -> configure pipeline -> preview -> ap
 
 Core capabilities implemented in the MVP:
 
-- Create local data preparation projects.
+- Create and delete local data preparation projects.
 - Upload either one CSV dataset or a train/test CSV pair.
 - See workflow progress, current workspace context, loaded data, selected analysis, and selected pipeline throughout the app.
 - Move from upload completion directly into analysis.
@@ -176,7 +176,7 @@ Built so far:
 - versioned preprocessing config metadata for exported pipeline names, operation lists, summaries, and train-only fit notes
 - generated cleaned CSV, config JSON, markdown report, and Python code artifacts
 - React/Vite frontend workflow for projects, upload, analysis, issues, columns, pipelines, preview, and exports
-- backend pytest coverage, frontend build validation, and Playwright browser workflow tests for upload, upload errors, analysis, issues, columns, recommendation-to-pipeline, preview, apply, and export navigation
+- backend pytest coverage, frontend build validation, and Playwright browser workflow tests for project deletion, upload, upload errors, analysis, issues, columns, recommendation-to-pipeline, preview, apply, and export navigation
 
 Next implementation milestones:
 
