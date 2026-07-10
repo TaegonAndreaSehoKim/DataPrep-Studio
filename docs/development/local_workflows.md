@@ -89,7 +89,15 @@ cd frontend
 npm run test:e2e
 ```
 
-The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, workflow progress guidance, workspace context, CSV upload, upload error display, analysis run, inline report display, recommendation cards, issue suggestions, column charts, recommendation-to-pipeline, pipeline recipe summary, preview, apply, and export navigation.
+The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, workflow progress guidance, workspace context, CSV upload, upload error and blocked-state display, analysis run, inline report display, recommendation cards, issue suggestions, column charts, recommendation-to-pipeline, train/test analysis and export flow, pipeline recipe summary, operation parameter help, preview, apply, and export navigation.
+
+## Demo Walkthrough
+
+Use the demo walkthrough when preparing a short portfolio or review session:
+
+```text
+docs/demo/walkthrough.md
+```
 
 ## Local Storage
 

@@ -85,9 +85,9 @@ npm run dev
 Current validation checkpoint:
 
 ```text
-Backend pytest: 40 passed
+Backend pytest: 44 passed
 Frontend build: passing
-Frontend Playwright smoke: 8 passed
+Frontend Playwright smoke: 11 passed
 Backend smoke demo: passing
 ```
 

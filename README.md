@@ -78,6 +78,7 @@ More detail:
 - [API endpoints](docs/api/endpoints.md)
 - [Local workflows](docs/development/local_workflows.md)
 - [Validation and smoke checks](docs/operations/validation.md)
+- [Demo walkthrough](docs/demo/walkthrough.md)
 
 ## Quick Start
 
@@ -177,11 +178,13 @@ Built so far:
 - generated cleaned CSV, config JSON, markdown report, and Python code artifacts
 - React/Vite frontend workflow for projects, upload, analysis, issues, columns, pipelines, preview, and exports
 - backend pytest coverage, frontend build validation, and Playwright browser workflow tests for project deletion, upload, upload errors, analysis, issues, columns, recommendation-to-pipeline, preview, apply, and export navigation
+- train/test browser smoke coverage for analysis, pipeline preview/apply, and split export navigation
+- backend failure-state coverage for empty uploads, missing dataset state, invalid pipeline params, missing columns, and unavailable export artifacts
 
 Next implementation milestones:
 
-- broader browser coverage for train/test mode and additional failure states
-- operation-specific parameter help and demo walkthrough polish
+- continue broadening browser coverage for additional failure states
+- prepare demo screenshots or portfolio walkthrough material
 
 ## Development Workflow
 
@@ -209,7 +212,7 @@ DataPrep Studio.txt       original product requirements
 - SQLite and local filesystem storage are not production persistence.
 - Readiness scores and issue recommendations are heuristic.
 - Generated Python code replays fitted preprocessing steps for the implemented MVP operations, but should still be reviewed before production use.
-- Frontend browser coverage exercises the core upload, upload error, analysis, issue suggestion, column chart, recommendation-to-pipeline, preview, apply, and export navigation workflow, but does not yet cover train/test mode or the broader failure-state matrix.
+- Frontend browser coverage exercises the core upload, upload error, blocked-state, analysis, issue suggestion, column chart, recommendation-to-pipeline, train/test, preview, apply, and export navigation workflow, but does not cover every failure-state permutation.
 - No authentication, collaboration, cloud storage, or deployment path yet.
 - No model training, AutoML, or hyperparameter tuning.
 

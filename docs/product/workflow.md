@@ -18,7 +18,7 @@ It is designed for users who want to inspect data quality, choose transformation
 10. Review notable preprocessing recommendations, issues, charts, and column profiles, or read and print the inline analysis report.
 11. Add an accepted preprocessing recommendation directly into the pipeline with a clear action label, or build a pipeline manually.
 12. Review the pipeline recipe summary to understand what the enabled steps will do before preview or apply.
-13. Generate a suggested pipeline draft, import an exported preprocessing config, or configure operation parameters manually.
+13. Generate a suggested pipeline draft, import an exported preprocessing config, or configure operation parameters manually with visible defaults, allowed values, and supported column types.
 14. Validate the pipeline against selected columns, profile types, and step-to-step column availability, with affected-step feedback, then preview before/after summaries, column-level diffs, and sample rows.
 15. Apply the pipeline.
 16. Export cleaned data, config, report, and code.
@@ -40,6 +40,7 @@ It is designed for users who want to inspect data quality, choose transformation
 - Inline printable analysis report
 - Recommendation action cards
 - Pipeline recipe summary
+- Operation parameter help
 - Preprocessing config import and export metadata
 - Pipeline validation
 - Transformation preview with before/after samples and column diffs

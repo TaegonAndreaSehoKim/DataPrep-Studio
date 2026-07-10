@@ -47,9 +47,9 @@ What exists now:
 
 What should be improved next:
 
-- train/test browser smoke coverage
-- richer failure-state and empty-state coverage
-- more operation-specific UX affordances where manual parameters are still hard to understand
+- additional browser coverage for less common failure states and recovery paths
+- demo screenshots or portfolio walkthrough material
+- continued operation-specific UX refinement as new transformations are added
 - documentation updates whenever workflow, API, setup, or export behavior changes
 
 What is explicitly out of scope for the MVP:
@@ -303,11 +303,10 @@ For most tasks:
 
 Reasonable next milestones:
 
-- add browser smoke coverage for train/test analysis and pipeline application
-- broaden failure-state tests for invalid uploads, invalid pipeline params, missing columns, and failed exports
-- refine operation-specific parameter help in the pipeline builder
+- add browser smoke coverage for additional recovery paths after API failures
+- broaden backend edge-case coverage as new operations and exports are added
+- prepare demo screenshots or portfolio walkthrough material
 - keep documentation current with implemented workflow and API behavior
-- prepare demo screenshots or walkthrough material once UI stabilizes
 
 ## Default Mindset
 

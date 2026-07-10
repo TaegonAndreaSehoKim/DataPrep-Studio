@@ -28,7 +28,7 @@ npm run build
 npm run test:e2e
 ```
 
-The Playwright suite covers dashboard/project navigation, workflow progress guidance, workspace context, upload-to-analysis flow, upload error display, inline analysis report display, recommendation action cards, issue suggestions, column charts, recommendation-to-pipeline step creation, pipeline recipe summary, preview, apply, and export navigation with mocked backend responses.
+The Playwright suite covers dashboard/project navigation, workflow progress guidance, workspace context, upload-to-analysis flow, upload error and blocked-state display, inline analysis report display, recommendation action cards, issue suggestions, column charts, recommendation-to-pipeline step creation, train/test analysis and export flow, pipeline recipe summary, operation parameter help, preview, apply, and export navigation with mocked backend responses.
 
 ## UX Surfaces
 
