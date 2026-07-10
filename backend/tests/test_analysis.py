@@ -59,6 +59,24 @@ def test_analysis_rejects_missing_target_column(client):
     assert response.json()["detail"] == "Target column does not exist in the dataset"
 
 
+def test_analysis_rejects_missing_dataset_state(client):
+    project = client.post("/projects", json={"name": "No dataset"}).json()
+
+    single_response = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    )
+    train_test_response = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "train_test"},
+    )
+
+    assert single_response.status_code == 400
+    assert single_response.json()["detail"] == "Project does not have a single dataset upload"
+    assert train_test_response.status_code == 400
+    assert train_test_response.json()["detail"] == "Project must have train and test dataset uploads"
+
+
 def test_analysis_overview(client):
     project = client.post("/projects", json={"name": "Overview project"}).json()
     _upload_fixture(client, project["id"])

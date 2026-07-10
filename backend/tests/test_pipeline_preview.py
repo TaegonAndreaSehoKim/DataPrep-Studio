@@ -73,3 +73,29 @@ def test_pipeline_preview_returns_validation_error(client):
 
     assert response.status_code == 400
     assert "missing_column" in response.json()["detail"]
+
+
+def test_pipeline_preview_rejects_invalid_operation_params(client):
+    project = client.post("/projects", json={"name": "Invalid params preview"}).json()
+    _upload(client, project["id"])
+    analysis = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    ).json()
+    pipeline = client.post(
+        f"/projects/{project['id']}/pipelines",
+        json={"name": "bad params", "analysis_run_id": analysis["id"], "mode": "single"},
+    ).json()
+    client.post(
+        f"/pipelines/{pipeline['id']}/steps",
+        json={"operation_type": "numeric_imputation", "columns": ["income"], "params": {"strategy": "mode"}},
+    )
+
+    validation = client.post(f"/pipelines/{pipeline['id']}/validate")
+    response = client.post(f"/pipelines/{pipeline['id']}/preview", json={"limit": 2})
+
+    assert validation.status_code == 200
+    assert validation.json()["valid"] is False
+    assert any("Param strategy must be one of" in issue["message"] for issue in validation.json()["issues"])
+    assert response.status_code == 400
+    assert "numeric_imputation strategy must be mean, median, or constant" in response.json()["detail"]

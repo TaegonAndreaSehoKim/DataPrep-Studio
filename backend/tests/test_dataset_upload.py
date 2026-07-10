@@ -61,6 +61,19 @@ def test_upload_rejects_non_csv(client):
     assert "Only .csv files" in response.json()["detail"]
 
 
+def test_upload_rejects_empty_csv(client):
+    project_id = _create_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/datasets/upload",
+        data={"role": "single"},
+        files={"file": ("empty.csv", b"", "text/csv")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Uploaded CSV is empty"
+
+
 def test_upload_rejects_invalid_project(client):
     csv_path = FIXTURE_DIR / "preprocessing_sample.csv"
 

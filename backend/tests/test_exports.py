@@ -76,3 +76,26 @@ def test_apply_pipeline_creates_exports_and_downloads(client):
     runs = client.get(f"/projects/{project['id']}/pipeline-runs")
     assert runs.status_code == 200
     assert [item["id"] for item in runs.json()] == [run["id"]]
+
+
+def test_download_rejects_missing_export_artifact(client):
+    project = client.post("/projects", json={"name": "Missing artifact project"}).json()
+    _upload(client, project["id"])
+    analysis = client.post(
+        f"/projects/{project['id']}/analysis/run",
+        json={"target_column": "target", "problem_type": "classification", "mode": "single"},
+    ).json()
+    pipeline = client.post(
+        f"/projects/{project['id']}/pipelines",
+        json={"name": "single export pipeline", "analysis_run_id": analysis["id"], "mode": "single"},
+    ).json()
+    client.post(
+        f"/pipelines/{pipeline['id']}/steps",
+        json={"operation_type": "numeric_imputation", "columns": ["income"], "params": {"strategy": "median"}},
+    )
+    run = client.post(f"/pipelines/{pipeline['id']}/apply", json={"limit": 20}).json()
+
+    response = client.get(f"/pipeline-runs/{run['id']}/download/cleaned-train")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Requested export artifact is not available"
