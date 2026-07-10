@@ -657,6 +657,32 @@ test("opens pipeline builder and shows config import affordance", async ({ page 
   await expect(page.getByRole("button", { name: "Import Config" })).toBeDisabled();
 });
 
+test("shows guarded empty states for blocked workflow pages", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("navigation").getByRole("button", { name: "Pipeline" }).click();
+  await expect(page.getByText("Choose a project before building a pipeline.")).toBeVisible();
+
+  await page.getByRole("navigation").getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Select a pipeline before previewing.")).toBeVisible();
+
+  await page.getByRole("navigation").getByRole("button", { name: "Exports" }).click();
+  await expect(page.getByText("Apply a pipeline to create export artifacts.")).toBeVisible();
+});
+
+test("shows a readable config import error", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Projects" }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("navigation").getByRole("button", { name: "Pipeline" }).click();
+
+  await page.getByLabel("preprocessing_config.json").fill("{not valid json");
+  await page.getByRole("button", { name: "Import Config" }).click();
+
+  await expect(page.getByText(/Expected property name|Unexpected token/)).toBeVisible();
+});
+
 test("deletes an existing project from the project list", async ({ page }) => {
   await page.goto("/");
 
