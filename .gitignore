@@ -25,6 +25,9 @@ backend/app/storage/exports/*
 !backend/app/storage/uploads/.gitkeep
 !backend/app/storage/exports/.gitkeep
 
+# Local datasets
+datasets/
+
 # Node
 node_modules/
 frontend/dist/
