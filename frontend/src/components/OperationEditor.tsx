@@ -8,6 +8,24 @@ function parseJsonValue(raw: string, fallback: unknown): unknown {
   }
 }
 
+function formatValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "none";
+  }
+  if (Array.isArray(value) || typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function guidanceText(param: OperationParamMetadata) {
+  const items = [`Default: ${formatValue(param.default)}`];
+  if (param.options?.length) {
+    items.push(`Allowed: ${param.options.join(", ")}`);
+  }
+  return items.join(" / ");
+}
+
 function renderParamInput(
   param: OperationParamMetadata,
   value: unknown,
@@ -15,10 +33,10 @@ function renderParamInput(
 ) {
   if (param.type === "boolean") {
     return (
-      <label className="checkbox-row">
+      <div className="checkbox-row">
         <input type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(param.name, event.target.checked)} />
         <span>{param.description}</span>
-      </label>
+      </div>
     );
   }
 
@@ -89,12 +107,23 @@ export function OperationEditor({
     <div className="operation-editor">
       <h3>{operation.label}</h3>
       <p>{operation.description}</p>
+      <div className="operation-support">
+        <span>Supported columns</span>
+        <strong>{operation.supported_column_types.join(", ")}</strong>
+      </div>
       {operation.params.length ? (
         operation.params.map((param) => (
-          <label key={param.name}>
-            <span>{param.name}</span>
+          <label className="param-field" key={param.name}>
+            <span className="param-heading">
+              <span>{param.name}</span>
+              <span className="param-badges">
+                <span>{param.type}</span>
+                {param.required ? <span>required</span> : <span>optional</span>}
+              </span>
+            </span>
             {renderParamInput(param, params[param.name] ?? param.default ?? null, updateParam)}
             {param.type !== "boolean" ? <small>{param.description}</small> : null}
+            <small className="param-guidance">{guidanceText(param)}</small>
           </label>
         ))
       ) : (

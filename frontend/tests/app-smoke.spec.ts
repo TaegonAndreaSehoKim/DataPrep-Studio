@@ -655,6 +655,8 @@ test("opens pipeline builder and shows config import affordance", async ({ page 
   await expect(page.getByRole("heading", { name: "Import Config" })).toBeVisible();
   await expect(page.getByLabel("preprocessing_config.json")).toBeVisible();
   await expect(page.getByRole("button", { name: "Import Config" })).toBeDisabled();
+  await expect(page.getByText("Supported columns")).toBeVisible();
+  await expect(page.getByText("Default: median / Allowed: mean, median, constant")).toBeVisible();
 });
 
 test("shows guarded empty states for blocked workflow pages", async ({ page }) => {
