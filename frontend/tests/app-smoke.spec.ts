@@ -48,6 +48,32 @@ const uploadedAnalysis = {
   readiness_score: 88.25
 };
 
+const trainDataset = {
+  ...dataset,
+  id: 203,
+  role: "train",
+  filename: "train-smoke.csv",
+  storage_path: "uploads/train-smoke.csv",
+  row_count: 6,
+  file_size_bytes: 180
+};
+
+const testDataset = {
+  ...dataset,
+  id: 204,
+  role: "test",
+  filename: "test-smoke.csv",
+  storage_path: "uploads/test-smoke.csv",
+  row_count: 3,
+  file_size_bytes: 120
+};
+
+const trainTestAnalysis = {
+  ...analysis,
+  id: 303,
+  readiness_score: 76.4
+};
+
 const pipeline = {
   id: 401,
   project_id: project.id,
@@ -80,6 +106,29 @@ const pipelineRun = {
   created_at: "2026-05-17T00:00:00Z"
 };
 
+const trainTestPipelineRun = {
+  ...pipelineRun,
+  id: 702,
+  before_summary: {
+    train: { row_count: 6, column_count: 4 },
+    test: { row_count: 3, column_count: 4 }
+  },
+  after_summary: {
+    train: { row_count: 6, column_count: 4 },
+    test: { row_count: 3, column_count: 4 }
+  },
+  output_paths: {
+    cleaned_train: "exports/project_101/pipeline_run_702/cleaned_train.csv",
+    cleaned_test: "exports/project_101/pipeline_run_702/cleaned_test.csv",
+    config: "exports/project_101/pipeline_run_702/preprocessing_config.json",
+    report: "exports/project_101/pipeline_run_702/preprocessing_report.md",
+    code: "exports/project_101/pipeline_run_702/pipeline_code.py"
+  },
+  report_path: "exports/project_101/pipeline_run_702/preprocessing_report.md",
+  config_path: "exports/project_101/pipeline_run_702/preprocessing_config.json",
+  code_path: "exports/project_101/pipeline_run_702/pipeline_code.py"
+};
+
 const missingIncomeIssue = {
   id: 501,
   analysis_run_id: analysis.id,
@@ -101,9 +150,10 @@ const missingIncomeSuggestedStep = {
 
 async function mockApi(page: Page) {
   let currentDataset = dataset;
+  let projectDatasets = [dataset];
   let currentAnalysis = analysis;
   let createdPipeline: typeof pipeline | null = null;
-  let appliedRun: typeof pipelineRun | null = null;
+  let appliedRun: typeof pipelineRun | typeof trainTestPipelineRun | null = null;
   let projectDeleted = false;
 
   await page.route(`${apiBase}/**`, async (route) => {
@@ -152,7 +202,7 @@ async function mockApi(page: Page) {
     }
 
     if (method === "GET" && url.pathname === `/projects/${project.id}/datasets`) {
-      await route.fulfill({ json: currentDataset.id === dataset.id ? [dataset] : [currentDataset, dataset] });
+      await route.fulfill({ json: projectDatasets });
       return;
     }
 
@@ -162,25 +212,35 @@ async function mockApi(page: Page) {
     }
 
     if (method === "POST" && url.pathname === `/projects/${project.id}/datasets/upload`) {
-      if (request.postData()?.includes("broken.csv")) {
+      const postData = request.postData() ?? "";
+      if (postData.includes("broken.csv")) {
         await route.fulfill({ status: 400, body: "Invalid CSV file" });
         return;
       }
-      currentDataset = uploadedDataset;
+      if (postData.includes(trainDataset.filename)) {
+        currentDataset = trainDataset;
+      } else if (postData.includes(testDataset.filename)) {
+        currentDataset = testDataset;
+      } else {
+        currentDataset = uploadedDataset;
+      }
+      projectDatasets = [currentDataset, ...projectDatasets.filter((item) => item.role !== currentDataset.role)];
       await route.fulfill({ status: 201, json: { dataset: currentDataset } });
       return;
     }
 
-    if (method === "GET" && url.pathname === `/datasets/${currentDataset.id}/preview`) {
+    const previewMatch = url.pathname.match(/^\/datasets\/(\d+)\/preview$/);
+    if (method === "GET" && previewMatch) {
+      const previewDataset = projectDatasets.find((item) => item.id === Number(previewMatch[1])) ?? currentDataset;
       await route.fulfill({
         json: {
-          dataset_file_id: currentDataset.id,
-          columns: currentDataset.columns,
+          dataset_file_id: previewDataset.id,
+          columns: previewDataset.columns,
           rows: [
             { age: 34, income: 72000, city: "Austin", target: "yes" },
             { age: 41, income: null, city: "Seattle", target: "no" }
           ],
-          row_count: currentDataset.row_count,
+          row_count: previewDataset.row_count,
           limit: Number(url.searchParams.get("limit") ?? 5)
         }
       });
@@ -188,7 +248,8 @@ async function mockApi(page: Page) {
     }
 
     if (method === "POST" && url.pathname === `/projects/${project.id}/analysis/run`) {
-      currentAnalysis = uploadedAnalysis;
+      const body = request.postDataJSON() as { mode?: string };
+      currentAnalysis = body.mode === "train_test" ? trainTestAnalysis : uploadedAnalysis;
       await route.fulfill({ status: 201, json: currentAnalysis });
       return;
     }
@@ -204,7 +265,14 @@ async function mockApi(page: Page) {
     }
 
     if (method === "POST" && url.pathname === `/projects/${project.id}/pipelines`) {
-      createdPipeline = { ...pipeline, steps: [] };
+      const body = request.postDataJSON() as { mode?: "single" | "train_test"; analysis_run_id?: number | null; name?: string };
+      createdPipeline = {
+        ...pipeline,
+        name: body.name || pipeline.name,
+        mode: body.mode ?? "single",
+        analysis_run_id: body.analysis_run_id ?? currentAnalysis.id,
+        steps: []
+      };
       await route.fulfill({ status: 201, json: createdPipeline });
       return;
     }
@@ -267,6 +335,45 @@ async function mockApi(page: Page) {
     }
 
     if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/preview`) {
+      if (createdPipeline?.mode === "train_test") {
+        await route.fulfill({
+          json: {
+            before_summary: {
+              train: { row_count: 6, column_count: 4, missing_cells: 1 },
+              test: { row_count: 3, column_count: 4, missing_cells: 1 }
+            },
+            after_summary: {
+              train: { row_count: 6, column_count: 4, missing_cells: 0 },
+              test: { row_count: 3, column_count: 4, missing_cells: 0 }
+            },
+            affected_columns: ["income"],
+            before_sample_rows: [{ age: 41, income: null, city: "Seattle", target: "no" }],
+            sample_rows: [{ age: 41, income: 68000, city: "Seattle", target: "no" }],
+            column_diffs: [
+              {
+                column_name: "income",
+                status: "changed",
+                before_missing_count: 1,
+                after_missing_count: 0,
+                before_non_null_count: 5,
+                after_non_null_count: 6,
+                changed_sample_count: 1,
+                before_dtype: "float64",
+                after_dtype: "float64"
+              }
+            ],
+            step_effects: [
+              {
+                operation_type: "numeric_imputation",
+                summary: "Filled missing values using train-fitted values."
+              }
+            ],
+            warnings: ["Train/test mode fit preprocessing parameters on train only."],
+            fitted_params: [{ operation_type: "numeric_imputation", fitted_on: "train" }]
+          }
+        });
+        return;
+      }
       await route.fulfill({
         json: {
           before_summary: { row_count: 5, column_count: 4, missing_cells: 1 },
@@ -306,12 +413,12 @@ async function mockApi(page: Page) {
     }
 
     if (method === "POST" && url.pathname === `/pipelines/${pipeline.id}/apply`) {
-      appliedRun = pipelineRun;
+      appliedRun = createdPipeline?.mode === "train_test" ? trainTestPipelineRun : pipelineRun;
       await route.fulfill({ status: 201, json: appliedRun });
       return;
     }
 
-    if (method === "GET" && url.pathname === `/pipeline-runs/${pipelineRun.id}` && appliedRun) {
+    if (method === "GET" && appliedRun && url.pathname === `/pipeline-runs/${appliedRun.id}`) {
       await route.fulfill({ json: appliedRun });
       return;
     }
@@ -352,7 +459,7 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/overview` || url.pathname === `/analysis/${uploadedAnalysis.id}/overview`)) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/overview` || url.pathname === `/analysis/${uploadedAnalysis.id}/overview` || url.pathname === `/analysis/${trainTestAnalysis.id}/overview`)) {
       await route.fulfill({
         json: {
           analysis_run: currentAnalysis,
@@ -366,7 +473,7 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/preprocessing-recommendations` || url.pathname === `/analysis/${uploadedAnalysis.id}/preprocessing-recommendations`)) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/preprocessing-recommendations` || url.pathname === `/analysis/${uploadedAnalysis.id}/preprocessing-recommendations` || url.pathname === `/analysis/${trainTestAnalysis.id}/preprocessing-recommendations`)) {
       await route.fulfill({
         json: {
           analysis_id: currentAnalysis.id,
@@ -392,17 +499,29 @@ async function mockApi(page: Page) {
       return;
     }
 
+    if (method === "GET" && url.pathname === `/analysis/${trainTestAnalysis.id}/train-test-comparison`) {
+      await route.fulfill({
+        json: {
+          analysis_id: trainTestAnalysis.id,
+          drift_score: 0.28,
+          summary: { high_drift_columns: 1, checked_columns: 4 },
+          columns: [{ column_name: "income", drift_score: 0.28, severity: "warning" }]
+        }
+      });
+      return;
+    }
+
     if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/train-test-comparison` || url.pathname === `/analysis/${uploadedAnalysis.id}/train-test-comparison`)) {
       await route.fulfill({ status: 404, json: { detail: "Train/test comparison not found" } });
       return;
     }
 
-    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/charts` || url.pathname === `/analysis/${uploadedAnalysis.id}/charts`)) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/charts` || url.pathname === `/analysis/${uploadedAnalysis.id}/charts` || url.pathname === `/analysis/${trainTestAnalysis.id}/charts`)) {
       await route.fulfill({ json: { analysis_id: currentAnalysis.id, charts: {} } });
       return;
     }
 
-    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/download/report` || url.pathname === `/analysis/${uploadedAnalysis.id}/download/report`)) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/download/report` || url.pathname === `/analysis/${uploadedAnalysis.id}/download/report` || url.pathname === `/analysis/${trainTestAnalysis.id}/download/report`)) {
       await route.fulfill({
         contentType: "text/markdown; charset=utf-8",
         body: `# DataPrep Studio Analysis Report
@@ -417,13 +536,13 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/columns` || url.pathname === `/analysis/${uploadedAnalysis.id}/columns`)) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/columns` || url.pathname === `/analysis/${uploadedAnalysis.id}/columns` || url.pathname === `/analysis/${trainTestAnalysis.id}/columns`)) {
       await route.fulfill({
         json: [
           {
             id: 1,
             analysis_run_id: currentAnalysis.id,
-            dataset_role: "single",
+            dataset_role: currentAnalysis.id === trainTestAnalysis.id ? "train" : "single",
             column_name: "income",
             inferred_type: "numeric",
             missing_count: 1,
@@ -461,7 +580,7 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/issues` || url.pathname === `/analysis/${uploadedAnalysis.id}/issues`)) {
+    if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/issues` || url.pathname === `/analysis/${uploadedAnalysis.id}/issues` || url.pathname === `/analysis/${trainTestAnalysis.id}/issues`)) {
       await route.fulfill({ json: [{ ...missingIncomeIssue, analysis_run_id: currentAnalysis.id }] });
       return;
     }
@@ -471,7 +590,7 @@ async function mockApi(page: Page) {
       return;
     }
 
-    if (method === "GET" && (url.pathname === `/datasets/${dataset.id}/setup-suggestions` || url.pathname === `/datasets/${uploadedDataset.id}/setup-suggestions`)) {
+    if (method === "GET" && (url.pathname === `/datasets/${dataset.id}/setup-suggestions` || url.pathname === `/datasets/${uploadedDataset.id}/setup-suggestions` || url.pathname === `/datasets/${trainDataset.id}/setup-suggestions`)) {
       await route.fulfill({
         json: {
           dataset_file_id: currentDataset.id,
@@ -608,6 +727,62 @@ test("shows a readable upload error when the backend rejects a CSV", async ({ pa
 
   await expect(page.getByText("Invalid CSV file")).toBeVisible();
   await expect(page.getByText("Upload complete:")).not.toBeVisible();
+});
+
+test("runs a train/test analysis and exports train-only fitted outputs", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Projects" }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("button", { name: "Upload Dataset" }).click();
+
+  await page.getByLabel("Dataset Role").selectOption("train");
+  await page.getByLabel("CSV File").setInputFiles({
+    name: trainDataset.filename,
+    mimeType: "text/csv",
+    buffer: Buffer.from("age,income,city,target\n34,72000,Austin,yes\n41,,Seattle,no\n")
+  });
+  await page.getByRole("button", { name: "Upload CSV" }).click();
+  await expect(page.getByText(`Upload complete: ${trainDataset.filename}`)).toBeVisible();
+
+  await page.getByRole("button", { name: "Upload Another" }).click();
+  await page.getByLabel("Dataset Role").selectOption("test");
+  await page.getByLabel("CSV File").setInputFiles({
+    name: testDataset.filename,
+    mimeType: "text/csv",
+    buffer: Buffer.from("age,income,city,target\n37,69000,Austin,yes\n44,,Miami,no\n")
+  });
+  await page.getByRole("button", { name: "Upload CSV" }).click();
+  await expect(page.getByText(`Upload complete: ${testDataset.filename}`)).toBeVisible();
+
+  await page.getByRole("button", { name: "Run Analysis" }).click();
+  await page.getByLabel("Mode").selectOption("train_test");
+  await expect(page.getByText("Suggested setup applied from the loaded dataset.")).toBeVisible();
+  await page.getByRole("button", { name: "Run Analysis" }).click();
+
+  await expect(page.getByText("76.4").first()).toBeVisible();
+  await expect(page.getByText("Train/Test Drift")).toBeVisible();
+  await expect(page.getByText("high_drift_columns")).toBeVisible();
+
+  await page.getByRole("button", { name: "Build Pipeline" }).click();
+  await expect(page.getByRole("heading", { name: "Pipeline Overview" })).toBeVisible();
+  await page.getByLabel("Mode").selectOption("train_test");
+  await page.getByRole("button", { name: "Create Pipeline" }).click();
+  await expect(page.getByText("train_test / draft / 0 steps")).toBeVisible();
+
+  await page.getByText("income").click();
+  await page.getByRole("button", { name: "Add Manual Step" }).click();
+  await expect(page.locator(".pipeline-step").filter({ hasText: "numeric_imputation" })).toBeVisible();
+
+  await page.getByRole("main").getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Pipeline Preview" })).toBeVisible();
+  await expect(page.getByText("Filled missing values using train-fitted values.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Apply Pipeline" }).click();
+  await expect(page.getByRole("heading", { name: `Downloads for Run #${trainTestPipelineRun.id}` })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Clean Train" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Clean Test" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Cleaned CSV" })).not.toBeVisible();
 });
 
 test("loads a recommendation into pipeline step parameters", async ({ page }) => {
