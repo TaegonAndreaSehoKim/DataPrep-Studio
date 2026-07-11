@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BarChart3, Columns3, FileUp, Home, ListChecks, PackageOpen, Play, SlidersHorizontal } from "lucide-react";
 
 import { apiClient } from "./api/client";
-import type { AnalysisOverview, Dashboard, DatasetFile, Pipeline, SuggestedPipelineStep } from "./api/types";
+import type { AnalysisOverview, Dashboard, DatasetFile, Pipeline, PipelineRun, SuggestedPipelineStep } from "./api/types";
 import { Button } from "./components/Button";
 import { ErrorState } from "./components/ErrorState";
 import { LoadingState } from "./components/LoadingState";
@@ -136,6 +136,18 @@ export default function App() {
       .catch(() => setSelectedPipeline(null));
   }, [selectedPipelineId]);
 
+  useEffect(() => {
+    if (selectedPipeline?.analysis_run_id && selectedPipeline.analysis_run_id !== selectedAnalysisId) {
+      setSelectedAnalysisId(selectedPipeline.analysis_run_id);
+    }
+  }, [selectedAnalysisId, selectedPipeline]);
+
+  const handlePipelineRunSelected = useCallback((run: PipelineRun) => {
+    setSelectedProjectId(run.project_id);
+    setSelectedPipelineId(run.pipeline_id);
+    setSelectedPipelineRunId(run.id);
+  }, []);
+
   const latestByRole = (role: DatasetFile["role"]) => loadedDatasets.find((dataset) => dataset.role === role) ?? null;
 
   const hasDataset = Boolean(latestByRole("single") || (latestByRole("train") && latestByRole("test")));
@@ -150,6 +162,9 @@ export default function App() {
   const nextAction = (() => {
     if (!selectedProjectId) {
       return "Create or select a project to start.";
+    }
+    if (hasExport) {
+      return "Exports are ready. Download the cleaned data and reproducible artifacts.";
     }
     if (!hasDataset) {
       return "Upload a single CSV or a train/test pair.";
@@ -298,7 +313,7 @@ export default function App() {
           />
         );
       case "exports":
-        return <ExportPage projectId={selectedProjectId} pipelineRunId={selectedPipelineRunId} onRunSelected={setSelectedPipelineRunId} />;
+        return <ExportPage projectId={selectedProjectId} pipelineRunId={selectedPipelineRunId} onRunSelected={handlePipelineRunSelected} />;
       default:
         return <DashboardPage dashboard={dashboard} onCreateProject={() => setPage("create")} onSelectProject={chooseProject} />;
     }

@@ -15,7 +15,7 @@ export function ExportPage({
 }: {
   projectId: number | null;
   pipelineRunId: number | null;
-  onRunSelected: (runId: number) => void;
+  onRunSelected: (run: PipelineRun) => void;
 }) {
   const [runs, setRuns] = useState<PipelineRun[]>([]);
   const [selected, setSelected] = useState<PipelineRun | null>(null);
@@ -27,17 +27,22 @@ export function ExportPage({
     const loader = pipelineRunId
       ? apiClient.getPipelineRun(pipelineRunId).then((run) => {
           setSelected(run);
+          onRunSelected(run);
           return projectId ? apiClient.listProjectPipelineRuns(projectId).then(setRuns) : undefined;
         })
       : projectId
         ? apiClient.listProjectPipelineRuns(projectId).then((items) => {
-            setRuns(items);
-            setSelected(items[0] ?? null);
-          })
+          setRuns(items);
+          const firstRun = items[0] ?? null;
+          setSelected(firstRun);
+          if (firstRun) {
+            onRunSelected(firstRun);
+          }
+        })
         : Promise.resolve();
 
     loader.catch((err: Error) => setError(err.message)).finally(() => setLoading(false));
-  }, [projectId, pipelineRunId]);
+  }, [onRunSelected, projectId, pipelineRunId]);
 
   if (!projectId && !pipelineRunId) {
     return <EmptyState title="No project selected" message="Apply a pipeline to create export artifacts." />;
@@ -62,7 +67,7 @@ export function ExportPage({
                 key={run.id}
                 onClick={() => {
                   setSelected(run);
-                  onRunSelected(run.id);
+                  onRunSelected(run);
                 }}
               >
                 <strong>Run #{run.id}</strong>

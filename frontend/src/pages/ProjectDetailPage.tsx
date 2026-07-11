@@ -99,7 +99,7 @@ export function ProjectDetailPage({
                 <div className="list-row" key={dataset.id}>
                   <strong>{dataset.filename}</strong>
                   <span>
-                    {dataset.role} · {dataset.row_count} rows · {dataset.column_count} columns
+                    {dataset.role} / {dataset.row_count} rows / {dataset.column_count} columns
                   </span>
                 </div>
               ))}
@@ -116,7 +116,7 @@ export function ProjectDetailPage({
                 <button className="list-row list-button" key={analysis.id} onClick={() => onAnalyze(analysis.id)}>
                   <strong>Score {analysis.readiness_score.toFixed(1)}</strong>
                   <span>
-                    {analysis.problem_type} · target {analysis.target_column || "none"}
+                    {analysis.problem_type} / target {analysis.target_column || "none"}
                   </span>
                 </button>
               ))}
@@ -134,7 +134,7 @@ export function ProjectDetailPage({
               <button className="list-row list-button" key={pipeline.id} onClick={() => onPipeline(pipeline.id)}>
                 <strong>{pipeline.name}</strong>
                 <span>
-                  {pipeline.mode} · {pipeline.status} · {pipeline.steps.length} steps
+                  {pipeline.mode} / {pipeline.status} / {pipeline.steps.length} steps
                 </span>
               </button>
             ))}

@@ -637,6 +637,7 @@ test("renders dashboard and creates a project shell", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: project.name })).toBeVisible();
   await expect(page.getByText(dataset.filename).first()).toBeVisible();
+  await expect(page.getByText("single / 5 rows / 4 columns")).toBeVisible();
   await expect(page.getByText("5 rows / 4 columns").first()).toBeVisible();
   await expect(page.getByLabel("Workflow progress")).toContainText("Run analysis on the loaded data.");
   await expect(page.getByLabel("Current workspace context")).toContainText("Project #101");
@@ -790,7 +791,10 @@ test("runs a train/test analysis and exports train-only fitted outputs", async (
 
   await expect(page.getByText("76.4").first()).toBeVisible();
   await expect(page.getByText("Train/Test Drift")).toBeVisible();
-  await expect(page.getByText("high_drift_columns")).toBeVisible();
+  await expect(page.locator(".train-test-summary-grid")).toContainText("Drift Score");
+  await expect(page.locator(".train-test-summary-grid")).toContainText("0.28");
+  await expect(page.locator(".train-test-summary-grid")).toContainText("Drift Flags");
+  await expect(page.getByText("Raw comparison details")).toBeVisible();
 
   await page.getByRole("button", { name: "Build Pipeline" }).click();
   await expect(page.getByRole("heading", { name: "Pipeline Overview" })).toBeVisible();

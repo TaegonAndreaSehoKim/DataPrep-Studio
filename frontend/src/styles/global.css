@@ -405,6 +405,51 @@ main {
   font-weight: 700;
 }
 
+.train-test-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.train-test-summary-grid section {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.train-test-summary-grid strong,
+.train-test-summary-grid small {
+  display: block;
+}
+
+.train-test-summary-grid strong {
+  margin-top: 6px;
+  color: #111827;
+  font-size: 22px;
+}
+
+.train-test-summary-grid small {
+  margin-top: 4px;
+  color: #5f6f86;
+}
+
+.drift-details {
+  margin-top: 4px;
+}
+
+.drift-details summary {
+  cursor: pointer;
+  color: #31445b;
+  font-weight: 700;
+}
+
+.drift-details pre {
+  margin-top: 10px;
+  max-height: 420px;
+}
+
 .action-card-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1338,6 +1383,7 @@ pre {
   .summary-grid,
   .chart-grid,
   .analysis-overview-grid,
+  .train-test-summary-grid,
   .action-card-grid,
   .compact-form,
   .checkbox-grid,

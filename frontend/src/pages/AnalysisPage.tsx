@@ -22,6 +22,66 @@ import { LoadingState } from "../components/LoadingState";
 import { ReportPreview } from "../components/ReportPreview";
 import { ScoreCard } from "../components/ScoreCard";
 
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatNumber(value: number | null, digits = 2) {
+  if (value === null) {
+    return "-";
+  }
+  return Number.isInteger(value) ? String(value) : value.toFixed(digits);
+}
+
+function countArray(value: unknown) {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function countColumnRecords(columns: unknown, predicate: (column: JsonRecord) => boolean) {
+  if (Array.isArray(columns)) {
+    return columns.filter((column) => {
+      const record = asRecord(column);
+      return record ? predicate(record) : false;
+    }).length;
+  }
+  const record = asRecord(columns);
+  if (!record) {
+    return 0;
+  }
+  return Object.values(record).filter((column) => {
+    const columnRecord = asRecord(column);
+    return columnRecord ? predicate(columnRecord) : false;
+  }).length;
+}
+
+function trainTestDriftSummary(comparison: JsonRecord) {
+  const summary = asRecord(comparison.summary) ?? {};
+  const rowCounts = asRecord(summary.row_counts) ?? {};
+  const columnCounts = asRecord(summary.column_counts) ?? {};
+  const columns = summary.columns ?? comparison.columns;
+  const explicitHighDrift = asNumber(summary.high_drift_columns);
+  const flaggedColumns = explicitHighDrift ?? countColumnRecords(columns, (column) => column.drift_flag === true);
+  const insufficientDataColumns = countColumnRecords(columns, (column) => column.status === "insufficient_data");
+  const schemaIssueCount = countArray(summary.missing_columns_in_test) + countArray(summary.extra_columns_in_test);
+
+  return {
+    driftScore: asNumber(comparison.drift_score),
+    trainRows: asNumber(rowCounts.train),
+    testRows: asNumber(rowCounts.test),
+    trainColumns: asNumber(columnCounts.train),
+    testColumns: asNumber(columnCounts.test),
+    flaggedColumns,
+    insufficientDataColumns,
+    schemaIssueCount
+  };
+}
+
 export function AnalysisPage({
   projectId,
   analysisId,
@@ -75,6 +135,7 @@ export function AnalysisPage({
   const issueEntries = useMemo(() => Object.entries(overview?.issue_counts ?? {}).filter(([, count]) => count > 0), [overview]);
   const issueTotal = useMemo(() => issueEntries.reduce((sum, [, count]) => sum + count, 0), [issueEntries]);
   const recommendationCount = preprocessingRecommendations?.recommendations.length ?? 0;
+  const driftSummary = useMemo(() => comparison ? trainTestDriftSummary(comparison) : null, [comparison]);
 
   function readinessBand(score: number) {
     if (score >= 85) {
@@ -161,6 +222,7 @@ export function AnalysisPage({
     setProblemType(config.problem_type);
     setMissingTokens(config.missing_value_tokens.join(","));
     setIgnoredColumns(config.ignored_columns.join(","));
+    setNotice(null);
     setColumnTypeOverrides((current) => {
       const next = { ...current };
       for (const [column, type] of Object.entries(config.column_type_overrides)) {
@@ -379,9 +441,9 @@ export function AnalysisPage({
           </label>
           {setupSuggestion?.target_candidates.length ? (
             <div className="suggestion-box">
-              <strong>Suggested setup</strong>
+              <strong>Recommended starting point</strong>
               <span>
-                Target {setupSuggestion.recommended_target_column || "none"} / {setupSuggestion.recommended_problem_type}
+                Suggested target {setupSuggestion.recommended_target_column || "none"} / {setupSuggestion.recommended_problem_type}
               </span>
               <div className="target-candidates">
                 {setupSuggestion.target_candidates.map((candidate) => (
@@ -528,13 +590,39 @@ export function AnalysisPage({
             <div className="toolbar no-margin">
               <a className="button button-secondary" href={apiClient.analysisReportUrl(overview.analysis_run.id)}>Download Report</a>
             </div>
-            {comparison ? (
+            {driftSummary ? (
               <div className="analysis-detail-panel">
                 <strong>Train/Test Drift</strong>
-                <div className="summary-grid">
-                  <pre>{JSON.stringify({ drift_score: comparison.drift_score }, null, 2)}</pre>
-                  <pre>{JSON.stringify(comparison.summary, null, 2)}</pre>
+                <div className="train-test-summary-grid">
+                  <section>
+                    <span className="field-label">Drift Score</span>
+                    <strong>{formatNumber(driftSummary.driftScore)}</strong>
+                  </section>
+                  <section>
+                    <span className="field-label">Rows</span>
+                    <strong>{formatNumber(driftSummary.trainRows, 0)} / {formatNumber(driftSummary.testRows, 0)}</strong>
+                    <small>train / test</small>
+                  </section>
+                  <section>
+                    <span className="field-label">Columns</span>
+                    <strong>{formatNumber(driftSummary.trainColumns, 0)} / {formatNumber(driftSummary.testColumns, 0)}</strong>
+                    <small>train / test</small>
+                  </section>
+                  <section>
+                    <span className="field-label">Drift Flags</span>
+                    <strong>{formatNumber(driftSummary.flaggedColumns, 0)}</strong>
+                    <small>{driftSummary.insufficientDataColumns} insufficient-data columns</small>
+                  </section>
+                  <section>
+                    <span className="field-label">Schema Mismatch</span>
+                    <strong>{formatNumber(driftSummary.schemaIssueCount, 0)}</strong>
+                    <small>missing or extra test columns</small>
+                  </section>
                 </div>
+                <details className="drift-details">
+                  <summary>Raw comparison details</summary>
+                  <pre>{JSON.stringify(comparison, null, 2)}</pre>
+                </details>
               </div>
             ) : null}
           </div>
