@@ -80,6 +80,7 @@ More detail:
 - [API endpoints](docs/api/endpoints.md)
 - [Local workflows](docs/development/local_workflows.md)
 - [Validation and smoke checks](docs/operations/validation.md)
+- [AWS EC2 demo deployment](docs/deployment/aws-ec2.md)
 - [Demo walkthrough](docs/demo/walkthrough.md)
 
 ## Quick Start
