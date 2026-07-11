@@ -9,7 +9,7 @@ FRONTEND_DIR="$APP_DIR/frontend"
 STORAGE_DIR="$BACKEND_DIR/app/storage"
 
 dnf update -y
-dnf install -y git nginx python3 python3-pip nodejs npm
+dnf install -y git nginx python3.12 python3.12-pip nodejs npm
 
 rm -rf "$APP_DIR"
 git clone "$REPO_URL" "$APP_DIR"
@@ -19,7 +19,7 @@ git checkout "$REPO_REF"
 mkdir -p "$STORAGE_DIR/uploads" "$STORAGE_DIR/exports"
 touch "$STORAGE_DIR/uploads/.gitkeep" "$STORAGE_DIR/exports/.gitkeep"
 
-python3 -m venv "$BACKEND_DIR/.venv"
+python3.12 -m venv "$BACKEND_DIR/.venv"
 "$BACKEND_DIR/.venv/bin/python" -m pip install --upgrade pip
 "$BACKEND_DIR/.venv/bin/python" -m pip install -r "$BACKEND_DIR/requirements.txt"
 
