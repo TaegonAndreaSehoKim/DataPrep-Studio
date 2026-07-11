@@ -4,6 +4,8 @@ DataPrep Studio is a full-stack data preparation workbench for tabular machine l
 
 It helps users upload CSV datasets, inspect data quality and ML-readiness issues, build preprocessing pipelines step by step, preview before/after effects, and export reproducible cleaned datasets, configs, reports, and pandas-style preprocessing code.
 
+Live demo: http://ec2-3-149-249-121.us-east-2.compute.amazonaws.com/
+
 This is not AutoML. It is not a black-box "fix my data" app. DataPrep Studio is designed for users who understand data science and want control over preprocessing choices.
 
 ![DataPrep Studio dashboard](docs/demo/screenshots/01-dashboard.png)
