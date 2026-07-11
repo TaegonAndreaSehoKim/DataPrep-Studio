@@ -16,7 +16,7 @@ This is not AutoML. It is not a black-box "fix my data" app. DataPrep Studio is 
 CSV dataset -> profile -> diagnose issues -> configure pipeline -> preview -> apply -> export
 ```
 
-Core capabilities implemented in the MVP:
+Core capabilities implemented in the current demo release:
 
 - Create and delete local data preparation projects.
 - Upload either one CSV dataset or a train/test CSV pair.
@@ -111,7 +111,7 @@ The frontend defaults to:
 http://127.0.0.1:8000
 ```
 
-The current MVP includes a runnable FastAPI backend and Vite frontend workflow.
+The app runs locally for development and is also available as a public AWS EC2 demo.
 
 ## Demo Flow
 
@@ -158,7 +158,7 @@ More checks: [Validation and smoke checks](docs/operations/validation.md).
 
 ## Current Status
 
-DataPrep Studio is at the working local MVP stage.
+DataPrep Studio is at a demo-ready full-stack stage. The core workflow runs end to end locally and on a public AWS EC2 demo instance, with local SQLite/filesystem persistence and reproducible export artifacts.
 
 Built so far:
 
@@ -189,7 +189,8 @@ Built so far:
 Next implementation milestones:
 
 - continue broadening browser coverage for additional failure states
-- prepare demo screenshots or portfolio walkthrough material
+- refine the hosted demo operational setup, including deployment automation, observability, and restart/recovery behavior
+- continue polishing portfolio walkthrough material as the UI evolves
 
 ## Development Workflow
 
@@ -213,12 +214,13 @@ DataPrep Studio.txt       original product requirements
 
 ## Known Limitations
 
-- CSV-only local MVP.
-- SQLite and local filesystem storage are not production persistence.
+- CSV-only data input for this demo release.
+- SQLite and filesystem storage are suitable for the local/demo workflow, but are not production persistence for a multi-user service.
 - Readiness scores and issue recommendations are heuristic.
-- Generated Python code replays fitted preprocessing steps for the implemented MVP operations, but should still be reviewed before production use.
+- Generated Python code replays fitted preprocessing steps for the currently implemented operations, but should still be reviewed before production use.
 - Frontend browser coverage exercises the core upload, upload error, blocked-state, analysis, issue suggestion, column chart, recommendation-to-pipeline, train/test, preview, apply, and export navigation workflow, but does not cover every failure-state permutation.
-- No authentication, collaboration, cloud storage, or deployment path yet.
+- The AWS EC2 deployment is a portfolio demo deployment, not a hardened production service. It does not yet include authentication, managed object storage, managed database persistence, autoscaling, monitoring, backups, or a formal release pipeline.
+- No multi-user collaboration features yet.
 - No model training, AutoML, or hyperparameter tuning.
 
 ## Resume Bullet Draft
