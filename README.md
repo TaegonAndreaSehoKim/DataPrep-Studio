@@ -6,6 +6,8 @@ It helps users upload CSV datasets, inspect data quality and ML-readiness issues
 
 This is not AutoML. It is not a black-box "fix my data" app. DataPrep Studio is designed for users who understand data science and want control over preprocessing choices.
 
+![DataPrep Studio dashboard](docs/demo/screenshots/01-dashboard.png)
+
 ## What It Does
 
 ```text
