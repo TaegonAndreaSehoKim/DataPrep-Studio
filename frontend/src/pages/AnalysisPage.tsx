@@ -11,6 +11,7 @@ import type {
   DatasetFile,
   DatasetSetupSuggestion,
   Pipeline,
+  PreprocessingRecommendation,
   SuggestedPipelineStep
 } from "../api/types";
 import { AnalysisCharts } from "../components/AnalysisCharts";
@@ -23,6 +24,27 @@ import { ReportPreview } from "../components/ReportPreview";
 import { ScoreCard } from "../components/ScoreCard";
 
 type JsonRecord = Record<string, unknown>;
+
+const RECOMMENDATION_PRIORITY_RANK: Record<PreprocessingRecommendation["priority"], number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3
+};
+
+function sortRecommendationsByImportance(items: PreprocessingRecommendation[]) {
+  return [...items].sort((left, right) => {
+    const priorityDelta = RECOMMENDATION_PRIORITY_RANK[left.priority] - RECOMMENDATION_PRIORITY_RANK[right.priority];
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    const categoryDelta = left.category.localeCompare(right.category);
+    if (categoryDelta !== 0) {
+      return categoryDelta;
+    }
+    return left.title.localeCompare(right.title);
+  });
+}
 
 function asRecord(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null;
@@ -135,6 +157,10 @@ export function AnalysisPage({
   const issueEntries = useMemo(() => Object.entries(overview?.issue_counts ?? {}).filter(([, count]) => count > 0), [overview]);
   const issueTotal = useMemo(() => issueEntries.reduce((sum, [, count]) => sum + count, 0), [issueEntries]);
   const recommendationCount = preprocessingRecommendations?.recommendations.length ?? 0;
+  const sortedRecommendations = useMemo(
+    () => sortRecommendationsByImportance(preprocessingRecommendations?.recommendations ?? []),
+    [preprocessingRecommendations]
+  );
   const driftSummary = useMemo(() => comparison ? trainTestDriftSummary(comparison) : null, [comparison]);
 
   function readinessBand(score: number) {
@@ -644,9 +670,9 @@ export function AnalysisPage({
       ) : null}
 
       <Card title="Preprocessing Recommendations">
-        {preprocessingRecommendations?.recommendations.length ? (
+        {sortedRecommendations.length ? (
           <div className="recommendation-grid">
-            {preprocessingRecommendations.recommendations.map((recommendation, index) => (
+            {sortedRecommendations.map((recommendation, index) => (
               <div className="recommendation-card" key={`${recommendation.category}-${index}`}>
                 <div className="issue-content">
                   <div className="recommendation-card-header">

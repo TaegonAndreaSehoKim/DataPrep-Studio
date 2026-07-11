@@ -141,6 +141,18 @@ const missingIncomeIssue = {
   created_at: "2026-05-17T00:00:00Z"
 };
 
+const lowPriorityIssue = {
+  id: 502,
+  analysis_run_id: analysis.id,
+  severity: "info",
+  category: "outlier",
+  title: "Some outliers in age",
+  explanation: "age has a small number of outliers worth reviewing.",
+  affected_columns: ["age"],
+  suggested_actions: ["Inspect outliers"],
+  created_at: "2026-05-17T00:00:00Z"
+};
+
 const missingIncomeSuggestedStep = {
   operation_type: "numeric_imputation",
   columns: ["income"],
@@ -479,6 +491,15 @@ async function mockApi(page: Page) {
           analysis_id: currentAnalysis.id,
           recommendations: [
             {
+              priority: "low",
+              category: "outlier",
+              title: "Inspect low-priority outliers",
+              rationale: "A small number of outliers may be legitimate observations.",
+              affected_columns: ["age"],
+              issue_ids: [502],
+              suggested_step: null
+            },
+            {
               priority: "high",
               category: "missingness",
               title: "Impute numeric missing values",
@@ -581,7 +602,12 @@ async function mockApi(page: Page) {
     }
 
     if (method === "GET" && (url.pathname === `/analysis/${analysis.id}/issues` || url.pathname === `/analysis/${uploadedAnalysis.id}/issues` || url.pathname === `/analysis/${trainTestAnalysis.id}/issues`)) {
-      await route.fulfill({ json: [{ ...missingIncomeIssue, analysis_run_id: currentAnalysis.id }] });
+      await route.fulfill({
+        json: [
+          { ...lowPriorityIssue, analysis_run_id: currentAnalysis.id },
+          { ...missingIncomeIssue, analysis_run_id: currentAnalysis.id }
+        ]
+      });
       return;
     }
 
@@ -738,6 +764,7 @@ test("uploads a CSV and runs analysis from the upload completion state", async (
   await expect(page.getByRole("link", { name: "Download Markdown" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Print Report" })).toBeVisible();
   await expect(page.getByText("Impute numeric missing values").first()).toBeVisible();
+  await expect(page.locator(".recommendation-card").first()).toContainText("Impute numeric missing values");
 });
 
 test("shows a readable upload error when the backend rejects a CSV", async ({ page }) => {
@@ -874,12 +901,14 @@ test("adds an issue suggestion to the selected pipeline", async ({ page }) => {
   await page.getByRole("navigation").getByRole("button", { name: "Issues" }).click();
   await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible();
   await expect(page.getByText(missingIncomeIssue.title)).toBeVisible();
+  await expect(page.locator(".issue-card").first()).toContainText(missingIncomeIssue.title);
 
-  await page.getByRole("button", { name: "Suggest Step" }).click();
+  const missingIncomeCard = page.locator(".issue-card").filter({ hasText: missingIncomeIssue.title });
+  await missingIncomeCard.getByRole("button", { name: "Suggest Step" }).click();
   await expect(page.getByText(missingIncomeSuggestedStep.reason)).toBeVisible();
   await expect(page.getByText("numeric_imputation").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Add to Pipeline" }).click();
+  await missingIncomeCard.getByRole("button", { name: "Add to Pipeline" }).click();
   await expect(page.getByText("Suggested step added.")).toBeVisible();
 });
 

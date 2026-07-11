@@ -9,6 +9,30 @@ import { ErrorState } from "../components/ErrorState";
 import { IssueBadge } from "../components/IssueBadge";
 import { LoadingState } from "../components/LoadingState";
 
+const ISSUE_SEVERITY_RANK: Record<Issue["severity"], number> = {
+  critical: 0,
+  warning: 1,
+  info: 2
+};
+
+function sortIssuesByImportance(items: Issue[]) {
+  return [...items].sort((left, right) => {
+    const severityDelta = ISSUE_SEVERITY_RANK[left.severity] - ISSUE_SEVERITY_RANK[right.severity];
+    if (severityDelta !== 0) {
+      return severityDelta;
+    }
+    const categoryDelta = left.category.localeCompare(right.category);
+    if (categoryDelta !== 0) {
+      return categoryDelta;
+    }
+    const titleDelta = left.title.localeCompare(right.title);
+    if (titleDelta !== 0) {
+      return titleDelta;
+    }
+    return left.id - right.id;
+  });
+}
+
 export function IssuesPage({ analysisId, pipelineId }: { analysisId: number | null; pipelineId: number | null }) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [suggestions, setSuggestions] = useState<Record<number, SuggestedPipelineStep>>({});
@@ -33,7 +57,9 @@ export function IssuesPage({ analysisId, pipelineId }: { analysisId: number | nu
 
   const categories = Array.from(new Set(issues.map((issue) => issue.category))).sort();
   const filtered = useMemo(
-    () => issues.filter((issue) => (!severity || issue.severity === severity) && (!category || issue.category === category)),
+    () => sortIssuesByImportance(
+      issues.filter((issue) => (!severity || issue.severity === severity) && (!category || issue.category === category))
+    ),
     [issues, severity, category]
   );
 
