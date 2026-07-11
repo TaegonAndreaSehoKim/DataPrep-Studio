@@ -10,6 +10,20 @@ This is not AutoML. It is not a black-box "fix my data" app. DataPrep Studio is 
 
 ![DataPrep Studio dashboard](docs/demo/screenshots/01-dashboard.png)
 
+## Product Walkthrough
+
+DataPrep Studio moves from dataset diagnosis to a configurable, reproducible preprocessing workflow.
+
+| Analysis & Recommendations | Pipeline Builder |
+|---|---|
+| ![Analysis results](docs/demo/screenshots/04-analysis-results.png) | ![Pipeline builder](docs/demo/screenshots/07-pipeline-builder.png) |
+
+| Before/After Preview | Reproducible Exports |
+|---|---|
+| ![Pipeline preview](docs/demo/screenshots/09-preview.png) | ![Export artifacts](docs/demo/screenshots/10-exports.png) |
+
+[View the complete screenshot walkthrough](docs/demo/walkthrough.md)
+
 ## What It Does
 
 ```text
