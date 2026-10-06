@@ -79,6 +79,7 @@ Storage contents and local SQLite database files should stay out of git.
 ## Design Notes
 
 - The backend is local-first and deterministic.
+- Editable pipeline drafts may contain invalid parameters. Validate, preview, and apply share operation parameter checks for types, finite numbers, range lengths/order, and supported values; execution rejects invalid parameters with readable 400 errors.
 - CSV files are the only supported input format for the MVP.
 - Preprocessing previews operate on copies and do not mutate uploaded source files.
 - In train/test mode, learned preprocessing parameters are fit on train only and applied to test.

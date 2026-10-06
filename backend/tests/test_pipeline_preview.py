@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
@@ -98,4 +100,37 @@ def test_pipeline_preview_rejects_invalid_operation_params(client):
     assert validation.json()["valid"] is False
     assert any("Param strategy must be one of" in issue["message"] for issue in validation.json()["issues"])
     assert response.status_code == 400
-    assert "numeric_imputation strategy must be mean, median, or constant" in response.json()["detail"]
+    assert "Param strategy must be one of" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("operation,params,message", [
+    ("numeric_scaling", {"method": "minmax", "feature_range": [1]}, "two finite numbers"),
+    ("numeric_scaling", {"feature_range": [2, 1]}, "less than upper"),
+    ("numeric_scaling", {"quantile_range": [-1, 75]}, "within 0 and 100"),
+    ("numeric_scaling", {"method": None}, "cannot be null"),
+    ("numeric_imputation", {"strategy": "constant", "fill_value": None}, "finite fill_value"),
+    ("outlier_clipping", {"lower_percentile": 99, "upper_percentile": 1}, "Clipping percentiles"),
+    ("outlier_clipping", {"iqr_multiplier": "oops"}, "must be number"),
+    ("one_hot_encoding", {"max_categories": -1}, "positive integer"),
+    ("one_hot_encoding", {"drop_first": "false"}, "must be boolean"),
+    ("rare_category_grouping", {"min_frequency": 2}, "within 0 and 1"),
+    ("rare_category_grouping", {"min_count": 1.5}, "positive integer"),
+    ("datetime_extract", {"features": ["unknown"]}, "supports only"),
+    ("ordinal_encoding", {"categories_order": {"income": "A"}}, "lists of strings"),
+])
+def test_validation_preview_apply_share_parameter_errors(client, operation, params, message):
+    project_id = client.post("/projects", json={"name": "Parameter validation"}).json()["id"]
+    _upload(client, project_id)
+    pipeline_id = client.post(f"/projects/{project_id}/pipelines", json={"name": "Editable draft"}).json()["id"]
+    response = client.post(f"/pipelines/{pipeline_id}/steps", json={
+        "operation_type": operation, "columns": ["income"], "params": params,
+    })
+    assert response.status_code == 201
+    validation = client.post(f"/pipelines/{pipeline_id}/validate").json()
+    assert validation["valid"] is False
+    assert any(message in issue["message"] for issue in validation["issues"])
+    for action in ["preview", "apply"]:
+        response = client.post(f"/pipelines/{pipeline_id}/{action}")
+        assert response.status_code == 400
+        assert message in response.json()["detail"]
+    assert client.get(f"/projects/{project_id}/pipeline-runs").json() == []

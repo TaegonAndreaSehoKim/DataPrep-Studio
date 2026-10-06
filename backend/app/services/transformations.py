@@ -4,6 +4,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from app.services.operation_registry import OPERATIONS_ALLOW_EMPTY_COLUMNS, validate_operation_params
+
 
 @dataclass
 class StepEffect:
@@ -36,6 +38,11 @@ def _missing_counts(df: pd.DataFrame, columns: list[str]) -> dict[str, int]:
 
 
 def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], params: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, Any], StepEffect]:
+    errors = validate_operation_params(operation_type, params)
+    if not columns and operation_type not in OPERATIONS_ALLOW_EMPTY_COLUMNS:
+        errors.append(f"{operation_type} requires at least one selected column.")
+    if errors:
+        raise TransformationError("; ".join(errors))
     working = df.copy()
     columns = _target_columns(working, columns)
     before_shape = {"rows": int(len(working)), "columns": int(len(working.columns))}

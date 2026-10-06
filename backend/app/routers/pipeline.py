@@ -8,7 +8,6 @@ from app.deps import get_db
 from app.models import AnalysisRun, ColumnProfile, DatasetFile, Issue, Pipeline, PipelineRun, PipelineStep, Project, utc_now
 from app.schemas import (
     OperationMetadata,
-    OperationParamMetadata,
     PipelineConfigImportCreate,
     PipelineCreate,
     PipelineOut,
@@ -25,6 +24,11 @@ from app.schemas import (
 )
 from app.services.csv_loader import CsvValidationError, read_csv_file
 from app.services.export_service import write_pipeline_exports
+from app.services.operation_registry import (
+    OPERATIONS_ALLOW_EMPTY_COLUMNS,
+    operation_metadata as get_operation_metadata,
+    validate_operation_params,
+)
 from app.services.pipeline_engine import (
     PipelineStepSpec,
     apply_pipeline_single,
@@ -35,8 +39,6 @@ from app.services.suggestion_builder import build_suggested_pipeline_steps, buil
 from app.services.transformations import TransformationError
 
 router = APIRouter(tags=["pipeline"])
-
-OPERATIONS_ALLOW_EMPTY_COLUMNS = {"remove_duplicate_rows", "rename_columns", "reorder_columns"}
 
 
 def _json_loads(value: str, fallback):
@@ -140,45 +142,9 @@ def _column_profiles_by_name(db: Session, analysis_run_id: int | None) -> dict[s
     return by_name
 
 
-def _operation_param(
-    name: str,
-    type_: str,
-    description: str,
-    default: object | None = None,
-    required: bool = False,
-    options: list[str] | None = None,
-) -> OperationParamMetadata:
-    return OperationParamMetadata(
-        name=name,
-        type=type_,  # type: ignore[arg-type]
-        required=required,
-        default=default,
-        options=options,
-        description=description,
-    )
-
-
 @router.get("/pipeline/operations", response_model=list[OperationMetadata])
 def operation_metadata() -> list[OperationMetadata]:
-    return [
-        OperationMetadata(operation_type="drop_columns", label="Drop Columns", description="Remove selected columns.", supported_column_types=["numeric", "categorical", "boolean", "datetime", "text", "unknown"], params=[]),
-        OperationMetadata(operation_type="remove_duplicate_rows", label="Remove Duplicate Rows", description="Remove duplicate rows using all or selected columns.", supported_column_types=["any"], params=[_operation_param("subset", "list", "Columns to use for duplicate detection.", []), _operation_param("keep", "select", "Which duplicate to keep.", "first", options=["first", "last", "none"])]),
-        OperationMetadata(operation_type="numeric_imputation", label="Numeric Imputation", description="Fill missing numeric values.", supported_column_types=["numeric"], params=[_operation_param("strategy", "select", "Imputation strategy.", "median", options=["mean", "median", "constant"]), _operation_param("fill_value", "number", "Constant fill value.", None)]),
-        OperationMetadata(operation_type="categorical_imputation", label="Categorical Imputation", description="Fill missing categorical values.", supported_column_types=["categorical", "boolean"], params=[_operation_param("strategy", "select", "Imputation strategy.", "most_frequent", options=["most_frequent", "constant"]), _operation_param("fill_value", "string", "Constant fill value.", "__MISSING__")]),
-        OperationMetadata(operation_type="add_missing_indicator", label="Missing Indicator", description="Create binary missingness indicator columns.", supported_column_types=["numeric", "categorical", "boolean", "datetime", "text", "unknown"], params=[_operation_param("suffix", "string", "Suffix for indicator columns.", "_was_missing")]),
-        OperationMetadata(operation_type="replace_placeholder_values", label="Replace Placeholder Values", description="Replace placeholder strings with missing values.", supported_column_types=["categorical", "text", "unknown"], params=[_operation_param("placeholders", "list", "Placeholder strings to replace.", ["N/A", "NA", "unknown", "?", "-"]), _operation_param("replacement", "string", "Replacement value; null means missing.", None)]),
-        OperationMetadata(operation_type="rare_category_grouping", label="Rare Category Grouping", description="Replace rare categories with a shared label.", supported_column_types=["categorical", "text"], params=[_operation_param("min_frequency", "number", "Minimum category frequency.", 0.01), _operation_param("min_count", "number", "Minimum category count.", None), _operation_param("rare_label", "string", "Replacement label.", "__RARE__"), _operation_param("include_missing", "boolean", "Group missing values too.", False)]),
-        OperationMetadata(operation_type="one_hot_encoding", label="One-Hot Encoding", description="Create one binary column per category.", supported_column_types=["categorical", "boolean"], params=[_operation_param("drop_first", "boolean", "Drop first category.", False), _operation_param("handle_unknown", "select", "Unknown category behavior.", "ignore", options=["ignore"]), _operation_param("max_categories", "number", "Maximum categories to encode.", None)]),
-        OperationMetadata(operation_type="ordinal_encoding", label="Ordinal Encoding", description="Map categories to integer codes.", supported_column_types=["categorical", "boolean"], params=[_operation_param("categories_order", "object", "Explicit category order per column.", {}), _operation_param("unknown_value", "number", "Value for unknown categories.", -1)]),
-        OperationMetadata(operation_type="frequency_encoding", label="Frequency Encoding", description="Map categories to observed train frequencies.", supported_column_types=["categorical", "boolean"], params=[_operation_param("normalize", "boolean", "Use normalized frequencies.", True), _operation_param("unknown_value", "number", "Value for unknown categories.", 0)]),
-        OperationMetadata(operation_type="numeric_scaling", label="Numeric Scaling", description="Scale numeric columns.", supported_column_types=["numeric"], params=[_operation_param("method", "select", "Scaling method.", "standard", options=["standard", "minmax", "robust"]), _operation_param("feature_range", "list", "Min/max range for minmax scaling.", [0, 1]), _operation_param("quantile_range", "list", "Quantile range for robust scaling.", [25, 75])]),
-        OperationMetadata(operation_type="outlier_clipping", label="Outlier Clipping", description="Clip numeric values to learned thresholds.", supported_column_types=["numeric"], params=[_operation_param("method", "select", "Threshold method.", "percentile", options=["percentile", "iqr"]), _operation_param("lower_percentile", "number", "Lower percentile.", 1.0), _operation_param("upper_percentile", "number", "Upper percentile.", 99.0), _operation_param("iqr_multiplier", "number", "IQR multiplier.", 1.5)]),
-        OperationMetadata(operation_type="log_transform", label="Log Transform", description="Apply log1p-style numeric transformation.", supported_column_types=["numeric"], params=[_operation_param("method", "select", "Log method.", "log1p", options=["log1p"]), _operation_param("offset", "number", "Offset before transform.", 0), _operation_param("replace_original", "boolean", "Replace original column.", True), _operation_param("new_suffix", "string", "Suffix for new column.", "_log")]),
-        OperationMetadata(operation_type="datetime_extract", label="Datetime Extract", description="Extract datetime features.", supported_column_types=["datetime"], params=[_operation_param("date_format", "string", "Optional datetime format.", None), _operation_param("features", "list", "Datetime features to create.", ["year", "month", "day", "day_of_week", "is_weekend"]), _operation_param("drop_original", "boolean", "Drop original column.", True)]),
-        OperationMetadata(operation_type="text_basic_features", label="Text Basic Features", description="Clean text and optionally create length features.", supported_column_types=["text"], params=[_operation_param("lowercase", "boolean", "Lowercase text.", False), _operation_param("strip_whitespace", "boolean", "Strip whitespace.", True), _operation_param("create_length_feature", "boolean", "Create character length feature.", True), _operation_param("create_word_count_feature", "boolean", "Create word count feature.", True), _operation_param("drop_original", "boolean", "Drop original column.", False)]),
-        OperationMetadata(operation_type="rename_columns", label="Rename Columns", description="Rename columns with an explicit map.", supported_column_types=["any"], params=[_operation_param("rename_map", "object", "Old-to-new column name map.", {})]),
-        OperationMetadata(operation_type="reorder_columns", label="Reorder Columns", description="Reorder columns.", supported_column_types=["any"], params=[_operation_param("column_order", "list", "Desired column order.", [])]),
-    ]
+    return get_operation_metadata()
 
 
 def _validate_step_against_metadata(
@@ -256,26 +222,10 @@ def _validate_step_against_metadata(
         )
         return issues
 
-    for param in metadata.params:
-        value = params.get(param.name, param.default)
-        if param.required and param.name not in params:
-            issues.append(
-                PipelineValidationIssue(
-                    severity="error",
-                    step_id=step.id,
-                    operation_type=step.operation_type,
-                    message=f"Missing required param: {param.name}",
-                )
-            )
-        if param.options is not None and value is not None and str(value) not in param.options:
-            issues.append(
-                PipelineValidationIssue(
-                    severity="error",
-                    step_id=step.id,
-                    operation_type=step.operation_type,
-                    message=f"Param {param.name} must be one of {', '.join(param.options)}",
-                )
-            )
+    for message in validate_operation_params(step.operation_type, params):
+        issues.append(PipelineValidationIssue(
+            severity="error", step_id=step.id, operation_type=step.operation_type, message=message,
+        ))
 
     issues.extend(_validate_operation_dependencies(step, columns, params, current_column_types))
     return issues
