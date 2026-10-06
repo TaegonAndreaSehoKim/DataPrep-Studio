@@ -28,6 +28,7 @@ The current MVP is a local full-stack app with:
 - pytest coverage for backend data-quality and transformation behavior
 - frontend build validation
 - Playwright browser smoke coverage for the core workflow
+- real FastAPI-connected Playwright coverage using disposable SQLite and storage (`npm run test:integration`)
 - workflow progress, workspace context, printable analysis report, recommendation action cards, and pipeline recipe UX
 
 This is local MVP software intended for demos, portfolio discussion, and future iteration. Do not optimize prematurely for production deployment, multi-user collaboration, or cloud storage.

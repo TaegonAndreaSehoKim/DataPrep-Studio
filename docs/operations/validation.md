@@ -55,6 +55,7 @@ Run browser-level smoke tests:
 cd frontend
 npx playwright install chromium
 npm run test:e2e
+npm run test:integration
 ```
 
 Run the dev server:
@@ -82,14 +83,7 @@ npm run dev
 14. Apply the pipeline.
 15. Download export artifacts.
 
-Current validation checkpoint:
-
-```text
-Backend pytest: 44 passed
-Frontend build: passing
-Frontend Playwright smoke: 11 passed
-Backend smoke demo: passing
-```
+The default browser suite mocks API responses and checks UI recovery paths. The integration suite starts a real FastAPI server with temporary persistence on `127.0.0.1:8001`, and Vite on `127.0.0.1:5174`; both ports must be free. It performs the workflow in single and train/test modes and executes downloaded Python code to compare against cleaned CSV downloads. Install backend requirements first; optionally set `DATAPREP_TEST_PYTHON` to the Python executable used for that environment.
 
 ## Test Isolation
 

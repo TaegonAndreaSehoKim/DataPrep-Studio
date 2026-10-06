@@ -78,6 +78,8 @@ Storage contents and local SQLite database files should stay out of git.
 
 ## Design Notes
 
+For the real browser integration suite, `scripts/run_browser_test_server.py` runs the API on loopback port 8001 with disposable SQLite and storage paths. Run `npm run test:integration` from `frontend/` after installing backend requirements and Playwright Chromium. It does not use the development database or upload/export directories.
+
 - The backend is local-first and deterministic.
 - Analysis runs keep an immutable `options` snapshot even after saved setups are edited or deleted. Startup adds the snapshot column to existing SQLite databases; legacy runs return `options: null` rather than inventing historical settings.
 - `POST /pipelines/{id}/analysis-setup` explicitly prepends editable ignored-column and trimmed placeholder steps from the linked snapshot. Repeated requests do not duplicate them. Type overrides remain profiling hints. Config/report/code record analysis context, while only enabled steps mutate exported data.

@@ -42,6 +42,12 @@ The Playwright suite covers dashboard/project navigation, workflow progress guid
 - Pipeline recipe summary showing what enabled steps will do before preview or apply.
 - Analysis results expose the saved run settings. The pipeline's **Add Analysis Setup Steps** button adds visible, editable missing-token and ignored-column steps before the existing recipe; setup hints do not silently alter exports.
 
+## Browser Tests
+
+`npm run test:e2e` runs isolated UI tests with mocked API responses, including failure recovery and workspace races. `npm run test:integration` launches a real API on port 8001 and frontend on port 5174, using temporary SQLite/upload/export storage. It covers single and train/test upload, invalid CSV recovery, explicit setup steps, validation, preview, apply, downloads, and execution of downloaded Python code against the cleaned CSVs.
+
+Install backend requirements and Playwright Chromium first. The integration runner selects `backend/.venv`, then the repository `.venv`, then `python`; set `DATAPREP_TEST_PYTHON` to a Python executable path to override this. Ports 8001 and 5174 must be free; existing servers are never reused. Test projects are deleted after each case, and temporary storage is removed on normal server shutdown. A force-killed process may leave only OS temporary files.
+
 ## API Base URL
 
 The default API base URL is:

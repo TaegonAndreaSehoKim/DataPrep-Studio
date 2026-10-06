@@ -167,6 +167,7 @@ cd frontend
 npm run build
 npx playwright install chromium
 npm run test:e2e
+npm run test:integration
 ```
 
 More checks: [Validation and smoke checks](docs/operations/validation.md).
