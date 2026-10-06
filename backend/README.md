@@ -83,5 +83,7 @@ Storage contents and local SQLite database files should stay out of git.
 - CSV files are the only supported input format for the MVP.
 - Preprocessing previews operate on copies and do not mutate uploaded source files.
 - In train/test mode, learned preprocessing parameters are fit on train only and applied to test.
+- Missing required test features are rejected. Numeric imputation coerces both splits consistently, rare grouping honors the same missing-value option in both splits, and inferred per-column date formats are learned on train and embedded in config/code. Ambiguous dates default to the format inferred from train; provide an explicit format when needed. Missing/invalid dates retain missing derived values.
+- All-missing train numeric columns need a constant imputation strategy before scaling/clipping. Robust scaling centers on the train median and uses the configured train quantile span.
 - Generated Python code loads embedded JSON safely, including nulls, booleans, and escaped strings. Export tests execute downloaded code and compare its outputs with cleaned CSVs in single and train/test modes.
 - Recommendations and readiness scores are advisory heuristics, not model performance guarantees.

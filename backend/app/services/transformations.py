@@ -3,6 +3,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from pandas._libs.tslibs.parsing import guess_datetime_format
 
 from app.services.operation_registry import OPERATIONS_ALLOW_EMPTY_COLUMNS, validate_operation_params
 
@@ -35,6 +36,22 @@ def _target_columns(df: pd.DataFrame, columns: list[str]) -> list[str]:
 
 def _missing_counts(df: pd.DataFrame, columns: list[str]) -> dict[str, int]:
     return {column: int(df[column].isna().sum()) for column in columns if column in df.columns}
+
+
+def _apply_datetime(df: pd.DataFrame, columns: list[str], fitted: dict[str, Any]) -> pd.DataFrame:
+    for column in columns:
+        date_format = fitted.get("date_formats", {}).get(column, fitted.get("date_format"))
+        parsed = pd.to_datetime(df[column], format=date_format, errors="coerce")
+        values = {
+            "year": parsed.dt.year, "month": parsed.dt.month, "day": parsed.dt.day,
+            "day_of_week": parsed.dt.dayofweek,
+            "is_weekend": parsed.dt.dayofweek.isin([5, 6]).astype(float).where(parsed.notna()),
+        }
+        for feature in fitted["features"]:
+            df[f"{column}_{feature}"] = values[feature]
+        if fitted["drop_original"]:
+            df = df.drop(columns=[column])
+    return df
 
 
 def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], params: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, Any], StepEffect]:
@@ -83,6 +100,8 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
         fill_values: dict[str, float] = {}
         for column in columns:
             numeric = pd.to_numeric(working[column], errors="coerce")
+            if strategy != "constant" and numeric.dropna().empty:
+                raise TransformationError(f"Column {column} has no finite train imputation value; choose a constant fill_value")
             if strategy == "mean":
                 value = float(numeric.mean())
             elif strategy == "median":
@@ -91,6 +110,8 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
                 value = float(params.get("fill_value", 0))
             else:
                 raise TransformationError("numeric_imputation strategy must be mean, median, or constant")
+            if not np.isfinite(value):
+                raise TransformationError(f"Column {column} has no finite train imputation value; choose a constant fill_value")
             fill_values[column] = value
             working[column] = numeric.fillna(value)
         after_missing = _missing_counts(working, columns)
@@ -129,7 +150,10 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
         include_missing = bool(params.get("include_missing", False))
         frequent_values: dict[str, list[str]] = {}
         for column in columns:
-            series = working[column].fillna("__MISSING__") if include_missing else working[column]
+            working[column] = working[column].astype(object)
+            if include_missing:
+                working[column] = working[column].fillna("__MISSING__")
+            series = working[column]
             counts = series.dropna().astype(str).value_counts()
             threshold = int(min_count) if min_count is not None else max(1, int(np.ceil(len(series) * min_frequency)))
             frequent = counts[counts >= threshold].index.astype(str).tolist()
@@ -138,7 +162,7 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
             if not include_missing:
                 mask = mask & working[column].notna()
             working.loc[mask, column] = rare_label
-        return working, {"frequent_values": frequent_values, "rare_label": rare_label}, StepEffect(operation_type, columns, "Grouped rare categories using train frequencies.")
+        return working, {"frequent_values": frequent_values, "rare_label": rare_label, "include_missing": include_missing}, StepEffect(operation_type, columns, "Grouped rare categories using train frequencies.")
 
     if operation_type == "one_hot_encoding":
         drop_first = bool(params.get("drop_first", False))
@@ -183,6 +207,8 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
         stats: dict[str, dict[str, float]] = {}
         for column in columns:
             numeric = pd.to_numeric(working[column], errors="coerce")
+            if numeric.dropna().empty or not np.isfinite(numeric.dropna()).all():
+                raise TransformationError(f"Column {column} needs finite train numeric values before scaling")
             if method == "standard":
                 mean = float(numeric.mean())
                 std = float(numeric.std(ddof=0)) or 1.0
@@ -200,8 +226,9 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
                 q1 = float(numeric.quantile(float(q_low) / 100.0))
                 q3 = float(numeric.quantile(float(q_high) / 100.0))
                 denom = q3 - q1 or 1.0
-                working[column] = (numeric - q1) / denom
-                stats[column] = {"q_low": q1, "q_high": q3}
+                median = float(numeric.median())
+                working[column] = (numeric - median) / denom
+                stats[column] = {"q_low": q1, "q_high": q3, "median": median}
             else:
                 raise TransformationError("numeric_scaling method must be standard, minmax, or robust")
         return working, {"method": method, "stats": stats}, StepEffect(operation_type, columns, f"Scaled numeric columns using {method}.")
@@ -212,6 +239,8 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
         clipped = 0
         for column in columns:
             numeric = pd.to_numeric(working[column], errors="coerce")
+            if numeric.dropna().empty or not np.isfinite(numeric.dropna()).all():
+                raise TransformationError(f"Column {column} needs finite train numeric values before clipping")
             if method == "percentile":
                 lower = float(numeric.quantile(float(params.get("lower_percentile", 1.0)) / 100.0))
                 upper = float(numeric.quantile(float(params.get("upper_percentile", 99.0)) / 100.0))
@@ -247,22 +276,16 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
     if operation_type == "datetime_extract":
         features = params.get("features", ["year", "month", "day", "day_of_week", "is_weekend"])
         drop_original = bool(params.get("drop_original", True))
-        date_format = params.get("date_format")
+        date_format = params.get("date_format") or None
+        date_formats = {}
         for column in columns:
-            parsed = pd.to_datetime(working[column], format=date_format, errors="coerce")
-            if "year" in features:
-                working[f"{column}_year"] = parsed.dt.year
-            if "month" in features:
-                working[f"{column}_month"] = parsed.dt.month
-            if "day" in features:
-                working[f"{column}_day"] = parsed.dt.day
-            if "day_of_week" in features:
-                working[f"{column}_day_of_week"] = parsed.dt.dayofweek
-            if "is_weekend" in features:
-                working[f"{column}_is_weekend"] = parsed.dt.dayofweek.isin([5, 6]).astype(int)
-            if drop_original:
-                working = working.drop(columns=[column])
-        return working, {"features": features, "drop_original": drop_original, "date_format": date_format}, StepEffect(operation_type, columns, "Extracted datetime features.")
+            non_missing = working[column].dropna()
+            inferred = date_format or (guess_datetime_format(str(non_missing.iloc[0])) if not non_missing.empty else None)
+            if inferred is None:
+                raise TransformationError(f"Cannot infer a date format from train column {column}; set date_format explicitly")
+            date_formats[column] = inferred
+        fitted = {"features": features, "drop_original": drop_original, "date_format": date_format, "date_formats": date_formats}
+        return _apply_datetime(working, columns, fitted), fitted, StepEffect(operation_type, columns, "Extracted datetime features using train-fitted date formats.")
 
     if operation_type == "text_basic_features":
         lowercase = bool(params.get("lowercase", False))
@@ -319,14 +342,16 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
 
 def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fitted_params: dict[str, Any]) -> tuple[pd.DataFrame, StepEffect]:
     working = df.copy()
-    columns = [column for column in columns if column in working.columns]
+    _require_columns(working, columns)
 
     if operation_type == "drop_columns":
-        drop = [column for column in fitted_params["columns"] if column in working.columns]
+        drop = fitted_params["columns"]
+        _require_columns(working, drop)
         return working.drop(columns=drop), StepEffect(operation_type, drop, f"Dropped {len(drop)} columns.")
 
     if operation_type == "remove_duplicate_rows":
-        subset = [column for column in fitted_params.get("subset", []) if column in working.columns]
+        subset = fitted_params.get("subset", [])
+        _require_columns(working, subset)
         keep_param = fitted_params.get("keep", "first")
         keep = False if keep_param == "none" else keep_param
         before = len(working)
@@ -339,9 +364,10 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
         return working, StepEffect(operation_type, columns, "Replaced placeholder values.")
 
     if operation_type in {"numeric_imputation", "categorical_imputation"}:
+        _require_columns(working, list(fitted_params["fill_values"]))
         for column, value in fitted_params["fill_values"].items():
-            if column in working.columns:
-                working[column] = working[column].fillna(value)
+            source = pd.to_numeric(working[column], errors="coerce") if operation_type == "numeric_imputation" else working[column]
+            working[column] = source.fillna(value)
         return working, StepEffect(operation_type, columns, "Filled missing values using train-fitted values.")
 
     if operation_type == "add_missing_indicator":
@@ -352,10 +378,13 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
 
     if operation_type == "rare_category_grouping":
         rare_label = fitted_params["rare_label"]
+        _require_columns(working, list(fitted_params["frequent_values"]))
         for column, frequent in fitted_params["frequent_values"].items():
-            if column in working.columns:
-                mask = ~working[column].astype(str).isin(frequent) & working[column].notna()
-                working.loc[mask, column] = rare_label
+            working[column] = working[column].astype(object)
+            if fitted_params.get("include_missing", False):
+                working[column] = working[column].fillna("__MISSING__")
+            mask = ~working[column].astype(str).isin(frequent) & working[column].notna()
+            working.loc[mask, column] = rare_label
         return working, StepEffect(operation_type, columns, "Grouped rare and unseen categories.")
 
     if operation_type == "one_hot_encoding":
@@ -388,7 +417,7 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
                 working[column] = ((numeric - stats["min"]) / denom) * (stats["high"] - stats["low"]) + stats["low"]
             elif method == "robust":
                 denom = stats["q_high"] - stats["q_low"] or 1.0
-                working[column] = (numeric - stats["q_low"]) / denom
+                working[column] = (numeric - stats.get("median", stats["q_low"])) / denom
         return working, StepEffect(operation_type, columns, "Scaled with train-fitted statistics.")
 
     if operation_type == "outlier_clipping":
@@ -396,6 +425,9 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
             if column in working.columns:
                 working[column] = pd.to_numeric(working[column], errors="coerce").clip(threshold["lower"], threshold["upper"])
         return working, StepEffect(operation_type, columns, "Clipped with train-fitted thresholds.")
+
+    if operation_type == "datetime_extract":
+        return _apply_datetime(working, columns, fitted_params), StepEffect(operation_type, columns, "Extracted datetime features using train-fitted date formats.")
 
     return fit_transform_step(working, operation_type, columns, fitted_params)[0], StepEffect(operation_type, columns, "Applied stateless transform.")
 

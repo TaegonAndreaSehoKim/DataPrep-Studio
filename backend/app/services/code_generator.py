@@ -30,6 +30,18 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
     operation = step["operation_type"]
     columns = step.get("columns", [])
     fitted = step.get("fitted", {{}})
+    required = columns
+    if operation == "drop_columns":
+        required = fitted.get("columns", columns)
+    elif operation == "remove_duplicate_rows":
+        required = fitted.get("subset", columns)
+    elif operation == "rename_columns":
+        required = list(fitted.get("rename_map", {{}}))
+    elif operation == "reorder_columns":
+        required = fitted.get("column_order", [])
+    missing = [column for column in required if column not in working.columns]
+    if missing:
+        raise ValueError(f"Columns do not exist: {{', '.join(missing)}}")
 
     if operation == "drop_columns":
         return working.drop(columns=[column for column in fitted.get("columns", columns) if column in working.columns])
@@ -49,7 +61,8 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
     if operation in {{"numeric_imputation", "categorical_imputation"}}:
         for column, value in fitted.get("fill_values", {{}}).items():
             if column in working.columns:
-                working[column] = working[column].fillna(value)
+                source = pd.to_numeric(working[column], errors="coerce") if operation == "numeric_imputation" else working[column]
+                working[column] = source.fillna(value)
         return working
 
     if operation == "add_missing_indicator":
@@ -63,6 +76,9 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
         rare_label = fitted.get("rare_label", "__RARE__")
         for column, frequent_values in fitted.get("frequent_values", {{}}).items():
             if column in working.columns:
+                working[column] = working[column].astype(object)
+                if fitted.get("include_missing", False):
+                    working[column] = working[column].fillna("__MISSING__")
                 mask = ~working[column].astype(str).isin(frequent_values) & working[column].notna()
                 working.loc[mask, column] = rare_label
         return working
@@ -104,7 +120,7 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
                 working[column] = ((numeric - stats["min"]) / denom) * (stats["high"] - stats["low"]) + stats["low"]
             elif method == "robust":
                 denom = stats["q_high"] - stats["q_low"] or 1.0
-                working[column] = (numeric - stats["q_low"]) / denom
+                working[column] = (numeric - stats.get("median", stats["q_low"])) / denom
         return working
 
     if operation == "outlier_clipping":
@@ -119,7 +135,10 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
         suffix = fitted.get("new_suffix", "_log")
         for column in columns:
             if column in working.columns:
-                transformed = np.log1p(pd.to_numeric(working[column], errors="coerce") + offset)
+                numeric = pd.to_numeric(working[column], errors="coerce") + offset
+                if (numeric.dropna() < 0).any():
+                    raise ValueError(f"Column {{column}} contains negative values after offset")
+                transformed = np.log1p(numeric)
                 if replace_original:
                     working[column] = transformed
                 else:
@@ -133,7 +152,8 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
         for column in columns:
             if column not in working.columns:
                 continue
-            parsed = pd.to_datetime(working[column], format=date_format, errors="coerce")
+            column_format = fitted.get("date_formats", {{}}).get(column, date_format)
+            parsed = pd.to_datetime(working[column], format=column_format, errors="coerce")
             if "year" in features:
                 working[f"{{column}}_year"] = parsed.dt.year
             if "month" in features:
@@ -143,7 +163,7 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
             if "day_of_week" in features:
                 working[f"{{column}}_day_of_week"] = parsed.dt.dayofweek
             if "is_weekend" in features:
-                working[f"{{column}}_is_weekend"] = parsed.dt.dayofweek.isin([5, 6]).astype(int)
+                working[f"{{column}}_is_weekend"] = parsed.dt.dayofweek.isin([5, 6]).astype(float).where(parsed.notna())
             if drop_original:
                 working = working.drop(columns=[column])
         return working
@@ -180,7 +200,7 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
         remaining = [column for column in working.columns if column not in order]
         return working[order + remaining]
 
-    return working
+    raise ValueError(f"Unsupported operation type: {{operation}}")
 
 
 def apply_pipeline(df: pd.DataFrame, config: dict = CONFIG) -> pd.DataFrame:
