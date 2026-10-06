@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 
-CONFIG = {config_json}
+CONFIG = json.loads({config_json!r})
 
 
 def _safe_category(value: object) -> str:

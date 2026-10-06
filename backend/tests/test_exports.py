@@ -1,5 +1,8 @@
+from io import StringIO
 from pathlib import Path
 
+import pandas as pd
+import pytest
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
@@ -99,3 +102,51 @@ def test_download_rejects_missing_export_artifact(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Requested export artifact is not available"
+
+
+@pytest.mark.parametrize("mode", ["single", "train_test"])
+def test_downloaded_code_reproduces_cleaned_csv(client, mode):
+    project_id = client.post("/projects", json={"name": "Code replay"}).json()["id"]
+    inputs = {"single": "age,city\n10,A\n,B\n30,A\n"} if mode == "single" else {
+        "train": "age,city\n10,A\n,B\n30,A\n",
+        "test": "age,city\n100,C\n,A\n",
+    }
+    for role, content in inputs.items():
+        response = client.post(
+            f"/projects/{project_id}/datasets/upload", data={"role": role},
+            files={"file": (f"{role}.csv", content.encode(), "text/csv")},
+        )
+        assert response.status_code == 201
+    pipeline_id = client.post(
+        f"/projects/{project_id}/pipelines", json={"name": "Replay ' \\ pipeline", "mode": mode},
+    ).json()["id"]
+    for operation, columns, params in [
+        ("add_missing_indicator", ["age"], {}),
+        ("numeric_imputation", ["age"], {"strategy": "mean"}),
+        ("one_hot_encoding", ["city"], {"drop_first": False}),
+        ("numeric_scaling", ["age"], {"method": "standard"}),
+    ]:
+        response = client.post(f"/pipelines/{pipeline_id}/steps", json={
+            "operation_type": operation, "columns": columns, "params": params,
+        })
+        assert response.status_code == 201
+    response = client.post(f"/pipelines/{pipeline_id}/apply")
+    assert response.status_code == 201, response.text
+    run_id = response.json()["id"]
+    code = client.get(f"/pipeline-runs/{run_id}/download/code").text
+    namespace = {"__name__": "export_replay"}
+    exec(code, namespace)
+    assert namespace["CONFIG"] == client.get(f"/pipeline-runs/{run_id}/download/config").json()
+    frames = {role: pd.read_csv(StringIO(content)) for role, content in inputs.items()}
+    if mode == "single":
+        replayed = {"single": namespace["preprocess_single"](frames["single"])}
+    else:
+        train, test = namespace["preprocess_train_test"](frames["train"], frames["test"])
+        replayed = {"train": train, "test": test}
+        assert namespace["CONFIG"]["steps"][1]["fitted"]["fill_values"]["age"] == 20
+    for role, frame in replayed.items():
+        exported = client.get(f"/pipeline-runs/{run_id}/download/cleaned-{role}")
+        assert exported.status_code == 200
+        pd.testing.assert_frame_equal(
+            frame.reset_index(drop=True), pd.read_csv(StringIO(exported.text)), check_dtype=False,
+        )

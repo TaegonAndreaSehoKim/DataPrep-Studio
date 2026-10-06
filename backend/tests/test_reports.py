@@ -39,6 +39,9 @@ def test_generated_pipeline_code_replays_fitted_steps():
     config = {
         "mode": "single",
         "pipeline_id": 1,
+        "target_column": None,
+        "pipeline_name": "Quotes ' \" and backslashes \\ with a newline\n서울",
+        "metadata": {"train_only_fit": False, "enabled": True},
         "steps": [
             {
                 "step_id": 1,
@@ -60,6 +63,7 @@ def test_generated_pipeline_code_replays_fitted_steps():
     namespace: dict[str, object] = {}
 
     exec(code, namespace)
+    assert namespace["CONFIG"] == config
 
     import pandas as pd
 

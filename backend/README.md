@@ -82,4 +82,5 @@ Storage contents and local SQLite database files should stay out of git.
 - CSV files are the only supported input format for the MVP.
 - Preprocessing previews operate on copies and do not mutate uploaded source files.
 - In train/test mode, learned preprocessing parameters are fit on train only and applied to test.
+- Generated Python code loads embedded JSON safely, including nulls, booleans, and escaped strings. Export tests execute downloaded code and compare its outputs with cleaned CSVs in single and train/test modes.
 - Recommendations and readiness scores are advisory heuristics, not model performance guarantees.
