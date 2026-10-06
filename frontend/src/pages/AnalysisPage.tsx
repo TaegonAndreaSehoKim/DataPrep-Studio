@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { apiClient } from "../api/client";
 import type {
@@ -178,7 +178,10 @@ export function AnalysisPage({
     return `Add ${step.operation_type} for ${columns}`;
   }
 
-  async function loadAnalysisDetails(nextAnalysisId: number) {
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  async function loadAnalysisDetails(nextAnalysisId: number, isCurrent: () => boolean = () => mountedRef.current) {
     const [nextOverview, nextRecommendations, nextComparison, nextCharts, nextReport] = await Promise.all([
       apiClient.getAnalysisOverview(nextAnalysisId),
       apiClient.getAnalysisPreprocessingRecommendations(nextAnalysisId),
@@ -186,6 +189,7 @@ export function AnalysisPage({
       apiClient.getAnalysisCharts(nextAnalysisId),
       apiClient.getAnalysisReport(nextAnalysisId).catch(() => "")
     ]);
+    if (!isCurrent()) return;
     setOverview(nextOverview);
     setPreprocessingRecommendations(nextRecommendations);
     setComparison(nextComparison);
@@ -198,15 +202,18 @@ export function AnalysisPage({
       return;
     }
     setLoading(true);
+    setError(null);
+    let active = true;
     Promise.all([apiClient.listProjectDatasets(projectId), apiClient.listProjectAnalysis(projectId), apiClient.listDatasetConfigs(projectId)])
       .then(([datasetResult, analysisResult, configResult]) => {
+        if (!active) return;
         setDatasets(datasetResult);
         setAnalyses(analysisResult);
         setDatasetConfigs(configResult);
         const nextAnalysis = analysisId ? analysisResult.find((item) => item.id === analysisId) : analysisResult[0];
         if (nextAnalysis) {
           onAnalysisSelected(nextAnalysis.id);
-          return loadAnalysisDetails(nextAnalysis.id);
+          return loadAnalysisDetails(nextAnalysis.id, () => active);
         }
         setOverview(null);
         setPreprocessingRecommendations(null);
@@ -214,8 +221,9 @@ export function AnalysisPage({
         setCharts(null);
         setAnalysisReport("");
       })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err: Error) => { if (active) setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [projectId, analysisId, onAnalysisSelected]);
 
   useEffect(() => {
@@ -280,16 +288,19 @@ export function AnalysisPage({
       setSetupSuggestion(null);
       return;
     }
+    let active = true;
     apiClient
       .getDatasetSetupSuggestions(preferredDataset.id)
       .then((suggestion) => {
+        if (!active) return;
         setSetupSuggestion(suggestion);
         if (!selectedConfigId && suggestionAppliedForDatasetId !== preferredDataset.id) {
           applySuggestion(suggestion);
           setSuggestionAppliedForDatasetId(preferredDataset.id);
         }
       })
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => { if (active) setError(err.message); });
+    return () => { active = false; };
   }, [preferredDataset, selectedConfigId, suggestionAppliedForDatasetId]);
 
   function normalizedTypeOverrides() {
@@ -382,6 +393,7 @@ export function AnalysisPage({
         missing_value_tokens: normalizedMissingTokens(),
         ignored_columns: normalizedIgnoredColumns()
       });
+      if (!mountedRef.current) return;
       onAnalysisSelected(analysis.id);
       await loadAnalysisDetails(analysis.id);
       setAnalyses((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
@@ -403,6 +415,7 @@ export function AnalysisPage({
       const pipeline = await apiClient.createSuggestedPipeline(projectId, overview.analysis_run.id, {
         name: `Suggested preprocessing #${overview.analysis_run.id}`
       });
+      if (!mountedRef.current) return;
       setNotice(`Suggested pipeline created with ${pipeline.steps.length} steps.`);
       onPipelineCreated(pipeline.id);
     } catch (err) {

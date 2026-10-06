@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { apiClient } from "../api/client";
 import type { AnalysisCharts as AnalysisChartsData, PreviewResult } from "../api/types";
@@ -26,26 +26,33 @@ export function PreviewPage({
   const [loading, setLoading] = useState(Boolean(pipelineId));
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const applyLock = useRef(false);
 
   useEffect(() => {
     if (!pipelineId) {
       return;
     }
     setLoading(true);
+    setError(null);
+    let active = true;
     Promise.all([apiClient.previewPipeline(pipelineId), apiClient.previewPipelineCharts(pipelineId)])
       .then(([nextPreview, nextCharts]) => {
+        if (!active) return;
         setPreview(nextPreview);
         setCharts(nextCharts);
       })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [pipelineId]);
+      .catch((err: Error) => { if (active) setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [pipelineId, retry]);
 
   async function apply() {
-    if (!pipelineId) {
+    if (!pipelineId || applyLock.current) {
       return;
     }
     setApplying(true);
+    applyLock.current = true;
     setError(null);
     try {
       const run = await apiClient.applyPipeline(pipelineId);
@@ -54,6 +61,7 @@ export function PreviewPage({
       setError(err instanceof Error ? err.message : "Apply failed");
     } finally {
       setApplying(false);
+      applyLock.current = false;
     }
   }
 
@@ -66,7 +74,7 @@ export function PreviewPage({
   }
 
   if (error) {
-    return <ErrorState message={error} />;
+    return <ErrorState message={error} onRetry={() => setRetry((current) => current + 1)} />;
   }
 
   if (!preview) {

@@ -68,6 +68,9 @@ export function PipelineBuilderPage({
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const applyLock = useRef(false);
   const consumedDraftRef = useRef<SuggestedPipelineStep | null>(null);
 
   const operation = useMemo(
@@ -105,12 +108,13 @@ export function PipelineBuilderPage({
     return `${operationLabel} on ${columns}`;
   }
 
-  function refresh() {
+  function refresh(isCurrent: () => boolean = () => true) {
     if (!projectId) {
       return Promise.resolve();
     }
     return Promise.all([apiClient.listProjectAnalysis(projectId), apiClient.listPipelines(projectId), apiClient.listOperations()])
       .then(([analysisResult, pipelineResult, operationResult]) => {
+        if (!isCurrent()) return;
         setAnalyses(analysisResult);
         setPipelines(pipelineResult);
         setOperations(operationResult);
@@ -133,20 +137,25 @@ export function PipelineBuilderPage({
       return;
     }
     setLoading(true);
-    refresh()
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [projectId, pipelineId]);
+    setError(null);
+    let active = true;
+    refresh(() => active)
+      .catch((err: Error) => { if (active) setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [projectId, pipelineId, retry]);
 
   useEffect(() => {
     if (!selectedAnalysis) {
       setColumnProfiles([]);
       return;
     }
+    let active = true;
     apiClient
       .listColumns(Number(selectedAnalysis))
-      .then(setColumnProfiles)
-      .catch((err: Error) => setError(err.message));
+      .then((columns) => { if (active) setColumnProfiles(columns); })
+      .catch((err: Error) => { if (active) setError(err.message); });
+    return () => { active = false; };
   }, [selectedAnalysis]);
 
   useEffect(() => {
@@ -333,9 +342,29 @@ export function PipelineBuilderPage({
       return;
     }
     [steps[index], steps[nextIndex]] = [steps[nextIndex], steps[index]];
-    const updated = await apiClient.reorderPipelineSteps(selectedPipeline.id, steps.map((step) => step.id));
-    setSelectedPipeline(updated);
-    setValidation(null);
+    try {
+      const updated = await apiClient.reorderPipelineSteps(selectedPipeline.id, steps.map((step) => step.id));
+      setSelectedPipeline(updated);
+      setValidation(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reorder pipeline steps");
+    }
+  }
+
+  async function applySelectedPipeline() {
+    if (!selectedPipeline || applyLock.current) return;
+    applyLock.current = true;
+    setApplying(true);
+    setError(null);
+    try {
+      const run = await apiClient.applyPipeline(selectedPipeline.id);
+      onApplied(run.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Apply failed");
+    } finally {
+      applyLock.current = false;
+      setApplying(false);
+    }
   }
 
   if (!projectId) {
@@ -348,7 +377,7 @@ export function PipelineBuilderPage({
 
   return (
     <div className="page-stack">
-      {error ? <ErrorState message={error} /> : null}
+      {error ? <ErrorState message={error} onRetry={() => setRetry((current) => current + 1)} /> : null}
       <Card title="Pipeline Overview">
         <form className="form compact-form" onSubmit={createPipeline}>
           <label>
@@ -390,11 +419,7 @@ export function PipelineBuilderPage({
             </select>
             <Button variant="secondary" disabled={!selectedPipeline} onClick={() => selectedPipeline && onPreview(selectedPipeline.id)}>Preview</Button>
             <Button variant="secondary" disabled={!selectedPipeline} onClick={validateSelectedPipeline}>Validate</Button>
-            <Button disabled={!selectedPipeline} onClick={async () => {
-              if (!selectedPipeline) return;
-              const run = await apiClient.applyPipeline(selectedPipeline.id);
-              onApplied(run.id);
-            }}>Apply</Button>
+            <Button disabled={!selectedPipeline || applying} onClick={applySelectedPipeline}>{applying ? "Applying" : "Apply"}</Button>
           </div>
         ) : null}
 

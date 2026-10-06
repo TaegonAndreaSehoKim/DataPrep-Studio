@@ -927,3 +927,107 @@ test("opens column profiles and renders selected column charts", async ({ page }
   await expect(page.getByRole("heading", { name: "Income Numeric Summary" })).toBeVisible();
   await expect(page.getByText("Distribution summary for the selected income column.")).toBeVisible();
 });
+
+async function openRecommendedPipeline(page: Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("navigation").getByRole("button", { name: "Analysis", exact: true }).click();
+  await page.getByRole("button", { name: "Add numeric_imputation for income" }).click();
+  await expect(page.getByText("Added recommendation to pipeline: numeric_imputation")).toBeVisible();
+}
+
+async function mockSecondProject(page: Page) {
+  const other = { ...project, id: 102, name: "Second workspace" };
+  await page.route(`${apiBase}/projects`, (route) => route.fulfill({ json: [project, other] }));
+  await page.route(`${apiBase}/projects/${other.id}**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    return route.fulfill({ json: path === `/projects/${other.id}` ? other : [] });
+  });
+  return other;
+}
+
+test("clears analysis pipeline and export selections when switching projects", async ({ page }) => {
+  const other = await mockSecondProject(page);
+  await openRecommendedPipeline(page);
+  await page.getByRole("main").getByRole("button", { name: "Preview", exact: true }).click();
+  await page.getByRole("button", { name: "Apply Pipeline", exact: true }).click();
+  await expect(page.getByRole("heading", { name: `Downloads for Run #${pipelineRun.id}` })).toBeVisible();
+  await page.getByRole("navigation").getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: other.name }).click();
+  const context = page.getByLabel("Current workspace context");
+  await expect(context).toContainText("Project #102");
+  await expect(context).not.toContainText("Export run");
+  await expect(context).not.toContainText("Score 91.5");
+  await expect(context).not.toContainText(pipeline.name);
+  await page.getByRole("navigation").getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(page.getByText("Select a pipeline before previewing.")).toBeVisible();
+  await page.getByRole("navigation").getByRole("button", { name: "Issues", exact: true }).click();
+  await expect(page.getByText("No analysis selected")).toBeVisible();
+});
+
+test("ignores dataset responses from a previous workspace", async ({ page }) => {
+  const other = await mockSecondProject(page);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let requests = 0;
+  await page.route(`${apiBase}/projects/${project.id}/datasets`, async (route) => {
+    requests += 1;
+    await gate;
+    await route.fulfill({ json: [dataset] });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await expect.poll(() => requests).toBeGreaterThan(0);
+  await page.getByRole("navigation").getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: other.name }).click();
+  await expect(page.getByRole("heading", { name: other.name })).toBeVisible();
+  const oldResponse = page.waitForResponse(`${apiBase}/projects/${project.id}/datasets`);
+  release();
+  await oldResponse;
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(page.getByLabel("Current workspace context")).toContainText("Project #102");
+  await expect(page.getByLabel("Current workspace context")).not.toContainText(dataset.filename);
+});
+
+test("retries a failed preview and shows the readable backend error", async ({ page }) => {
+  let failing = true;
+  await page.route(`${apiBase}/pipelines/${pipeline.id}/preview`, (route) => {
+    if (!failing) return route.fallback();
+    return route.fulfill({ status: 400, json: { detail: "Temporary preview failure" } });
+  });
+  await openRecommendedPipeline(page);
+  await page.getByRole("main").getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Temporary preview failure");
+  await expect(page.getByRole("alert")).not.toContainText('"detail"');
+  failing = false;
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Pipeline Preview" })).toBeVisible();
+});
+
+test("recovers from Apply failure and prevents duplicate Apply requests", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  let calls = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(`${apiBase}/pipelines/${pipeline.id}/apply`, async (route) => {
+    calls += 1;
+    if (calls === 1) return route.fulfill({ status: 400, json: { detail: "Apply failed once" } });
+    await gate;
+    await route.fulfill({ status: 201, json: pipelineRun });
+  });
+  await page.route(`${apiBase}/pipeline-runs/${pipelineRun.id}`, (route) => route.fulfill({ json: pipelineRun }));
+  await openRecommendedPipeline(page);
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Apply failed once");
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  const applying = page.getByRole("button", { name: "Applying", exact: true });
+  await expect(applying).toBeDisabled();
+  await applying.evaluate((button: HTMLButtonElement) => button.click());
+  await expect.poll(() => calls).toBe(2);
+  release();
+  await expect(page.getByRole("heading", { name: `Downloads for Run #${pipelineRun.id}` })).toBeVisible();
+  expect(errors).toEqual([]);
+});

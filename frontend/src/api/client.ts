@@ -24,6 +24,16 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
+async function responseError(response: Response): Promise<Error> {
+  const body = await response.text();
+  try {
+    const parsed = JSON.parse(body);
+    if (typeof parsed.detail === "string") return new Error(parsed.detail);
+    if (Array.isArray(parsed.detail)) return new Error(parsed.detail.map((item: { msg?: string }) => item.msg || "Invalid input").join("; "));
+  } catch { /* Plain text error response. */ }
+  return new Error(body || `Request failed with status ${response.status}`);
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
@@ -34,8 +44,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}`);
+    throw await responseError(response);
   }
 
   if (response.status === 204) {
@@ -126,8 +135,7 @@ export const apiClient = {
   getAnalysisReport: async (analysisId: number) => {
     const response = await fetch(`${API_BASE_URL}/analysis/${analysisId}/download/report`);
     if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || `Request failed with status ${response.status}`);
+      throw await responseError(response);
     }
     return response.text();
   },
@@ -217,8 +225,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || `Request failed with status ${response.status}`);
+      throw await responseError(response);
     }
 
     return (await response.json()) as DatasetUploadResponse;

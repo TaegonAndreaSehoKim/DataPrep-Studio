@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BarChart3, Columns3, FileUp, Home, ListChecks, PackageOpen, Play, SlidersHorizontal } from "lucide-react";
 
 import { apiClient } from "./api/client";
@@ -66,6 +66,9 @@ export default function App() {
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const projectRef = useRef<number | null>(null);
+  const pipelineRef = useRef<number | null>(null);
+  const datasetRequestRef = useRef(0);
 
   useEffect(() => {
     apiClient
@@ -75,29 +78,71 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  const chooseProject = useCallback((projectId: number, nextPage: PageKey = "project") => {
+  const selectProject = useCallback((projectId: number | null) => {
+    if (projectRef.current !== projectId) {
+      projectRef.current = projectId;
+      pipelineRef.current = null;
+      datasetRequestRef.current += 1;
+      setSelectedAnalysisId(null);
+      setSelectedPipelineId(null);
+      setSelectedPipelineRunId(null);
+      setPendingStepDraft(null);
+      setLoadedDatasets([]);
+      setSelectedAnalysisOverview(null);
+      setSelectedPipeline(null);
+      setError(null);
+    }
     setSelectedProjectId(projectId);
-    setPage(nextPage);
   }, []);
 
+  const chooseProject = useCallback((projectId: number, nextPage: PageKey = "project") => {
+    selectProject(projectId);
+    setPage(nextPage);
+  }, [selectProject]);
+
+  const selectAnalysis = useCallback((analysisId: number | null) => {
+    if (projectRef.current !== selectedProjectId) return;
+    if (analysisId !== selectedAnalysisId) {
+      pipelineRef.current = null;
+      setSelectedPipelineId(null);
+      setSelectedPipelineRunId(null);
+      setSelectedPipeline(null);
+      setPendingStepDraft(null);
+      setSelectedAnalysisOverview(null);
+    }
+    setSelectedAnalysisId(analysisId);
+  }, [selectedProjectId, selectedAnalysisId]);
+
+  const selectPipeline = useCallback((pipelineId: number) => {
+    if (projectRef.current !== selectedProjectId) return;
+    if (pipelineRef.current !== pipelineId) {
+      pipelineRef.current = pipelineId;
+      setSelectedPipelineRunId(null);
+      setSelectedPipeline(null);
+    }
+    setSelectedPipelineId(pipelineId);
+  }, [selectedProjectId]);
+
   const refreshDashboard = useCallback(() => {
+    setError(null);
     apiClient.dashboard().then(setDashboard).catch((err: Error) => setError(err.message));
   }, []);
 
   const refreshLoadedDatasets = useCallback((projectId: number | null) => {
+    const requestId = ++datasetRequestRef.current;
     if (!projectId) {
       setLoadedDatasets([]);
       return Promise.resolve();
     }
     return apiClient
       .listProjectDatasets(projectId)
-      .then(setLoadedDatasets)
-      .catch((err: Error) => setError(err.message));
+      .then((datasets) => { if (projectRef.current === projectId && datasetRequestRef.current === requestId) setLoadedDatasets(datasets); })
+      .catch((err: Error) => { if (projectRef.current === projectId && datasetRequestRef.current === requestId) setError(err.message); });
   }, []);
 
   const handleProjectDeleted = useCallback((projectId: number) => {
     if (selectedProjectId === projectId) {
-      setSelectedProjectId(null);
+      selectProject(null);
       setSelectedAnalysisId(null);
       setSelectedPipelineId(null);
       setSelectedPipelineRunId(null);
@@ -108,7 +153,7 @@ export default function App() {
       setPage("projects");
     }
     refreshDashboard();
-  }, [refreshDashboard, selectedProjectId]);
+  }, [refreshDashboard, selectedProjectId, selectProject]);
 
   useEffect(() => {
     refreshLoadedDatasets(selectedProjectId);
@@ -119,10 +164,12 @@ export default function App() {
       setSelectedAnalysisOverview(null);
       return;
     }
+    let active = true;
     apiClient
       .getAnalysisOverview(selectedAnalysisId)
-      .then(setSelectedAnalysisOverview)
-      .catch(() => setSelectedAnalysisOverview(null));
+      .then((overview) => { if (active) setSelectedAnalysisOverview(overview); })
+      .catch(() => { if (active) setSelectedAnalysisOverview(null); });
+    return () => { active = false; };
   }, [selectedAnalysisId]);
 
   useEffect(() => {
@@ -130,23 +177,27 @@ export default function App() {
       setSelectedPipeline(null);
       return;
     }
+    let active = true;
     apiClient
       .getPipeline(selectedPipelineId)
-      .then(setSelectedPipeline)
-      .catch(() => setSelectedPipeline(null));
+      .then((pipeline) => { if (active) setSelectedPipeline(pipeline); })
+      .catch(() => { if (active) setSelectedPipeline(null); });
+    return () => { active = false; };
   }, [selectedPipelineId]);
 
   useEffect(() => {
-    if (selectedPipeline?.analysis_run_id && selectedPipeline.analysis_run_id !== selectedAnalysisId) {
+    if (selectedPipeline?.id === selectedPipelineId && selectedPipeline?.analysis_run_id && selectedPipeline.analysis_run_id !== selectedAnalysisId) {
       setSelectedAnalysisId(selectedPipeline.analysis_run_id);
     }
-  }, [selectedAnalysisId, selectedPipeline]);
+  }, [selectedAnalysisId, selectedPipeline, selectedPipelineId]);
 
   const handlePipelineRunSelected = useCallback((run: PipelineRun) => {
-    setSelectedProjectId(run.project_id);
+    if (projectRef.current !== null && projectRef.current !== run.project_id) return;
+    selectProject(run.project_id);
+    pipelineRef.current = run.pipeline_id;
     setSelectedPipelineId(run.pipeline_id);
     setSelectedPipelineRunId(run.id);
-  }, []);
+  }, [selectProject]);
 
   const latestByRole = (role: DatasetFile["role"]) => loadedDatasets.find((dataset) => dataset.role === role) ?? null;
 
@@ -205,10 +256,6 @@ export default function App() {
       return <LoadingState message="Connecting to backend" />;
     }
 
-    if (error) {
-      return <ErrorState message={error} />;
-    }
-
     switch (page) {
       case "dashboard":
         return <DashboardPage dashboard={dashboard} onCreateProject={() => setPage("create")} onSelectProject={chooseProject} />;
@@ -226,14 +273,15 @@ export default function App() {
       case "project":
         return (
           <ProjectDetailPage
+            key={selectedProjectId}
             projectId={selectedProjectId}
             onUpload={() => setPage("upload")}
             onAnalyze={(analysisId) => {
-              setSelectedAnalysisId(analysisId);
+              selectAnalysis(analysisId);
               setPage("analysis");
             }}
             onPipeline={(pipelineId) => {
-              setSelectedPipelineId(pipelineId);
+              selectPipeline(pipelineId);
               setPage("pipeline");
             }}
             onProjectDeleted={handleProjectDeleted}
@@ -242,15 +290,22 @@ export default function App() {
       case "upload":
         return (
           <UploadPage
+            key={selectedProjectId}
             selectedProjectId={selectedProjectId}
+            onProjectSelected={selectProject}
             onUploaded={(projectId, dataset) => {
-              setSelectedProjectId(projectId);
+              selectProject(projectId);
+              datasetRequestRef.current += 1;
               setLoadedDatasets((current) => [dataset, ...current.filter((item) => item.id !== dataset.id)]);
               refreshDashboard();
             }}
             onAnalyzeReady={(projectId) => {
-              setSelectedProjectId(projectId);
-              setSelectedAnalysisId(null);
+              selectProject(projectId);
+              selectAnalysis(null);
+              pipelineRef.current = null;
+              setSelectedPipelineId(null);
+              setSelectedPipeline(null);
+              setSelectedPipelineRunId(null);
               setPage("analysis");
             }}
           />
@@ -258,45 +313,48 @@ export default function App() {
       case "analysis":
         return (
           <AnalysisPage
+            key={selectedProjectId}
             projectId={selectedProjectId}
             analysisId={selectedAnalysisId}
-            onAnalysisSelected={setSelectedAnalysisId}
+            onAnalysisSelected={selectAnalysis}
             onOpenIssues={() => setPage("issues")}
             onOpenColumns={() => setPage("columns")}
             onBuildPipeline={(analysisId) => {
-              setSelectedAnalysisId(analysisId);
+              selectAnalysis(analysisId);
               setPage("pipeline");
             }}
             onPipelineCreated={(pipelineId) => {
-              setSelectedPipelineId(pipelineId);
+              selectPipeline(pipelineId);
               setPendingStepDraft(null);
               setPage("pipeline");
             }}
             onUseRecommendation={(analysisId, step) => {
-              setSelectedAnalysisId(analysisId);
+              selectAnalysis(analysisId);
               setPendingStepDraft(step);
               setPage("pipeline");
             }}
           />
         );
       case "issues":
-        return <IssuesPage analysisId={selectedAnalysisId} pipelineId={selectedPipelineId} />;
+        return <IssuesPage key={selectedAnalysisId} analysisId={selectedAnalysisId} pipelineId={selectedPipelineId} />;
       case "columns":
-        return <ColumnsPage analysisId={selectedAnalysisId} />;
+        return <ColumnsPage key={selectedAnalysisId} analysisId={selectedAnalysisId} />;
       case "pipeline":
         return (
           <PipelineBuilderPage
+            key={selectedProjectId}
             projectId={selectedProjectId}
             analysisId={selectedAnalysisId}
             pipelineId={selectedPipelineId}
             initialStepDraft={pendingStepDraft}
             onInitialStepDraftConsumed={() => setPendingStepDraft(null)}
-            onPipelineSelected={setSelectedPipelineId}
+            onPipelineSelected={selectPipeline}
             onPreview={(pipelineId) => {
-              setSelectedPipelineId(pipelineId);
+              selectPipeline(pipelineId);
               setPage("preview");
             }}
             onApplied={(runId) => {
+              if (projectRef.current !== selectedProjectId || pipelineRef.current !== selectedPipelineId) return;
               setSelectedPipelineRunId(runId);
               setPage("exports");
             }}
@@ -305,15 +363,17 @@ export default function App() {
       case "preview":
         return (
           <PreviewPage
+            key={selectedPipelineId}
             pipelineId={selectedPipelineId}
             onApplied={(runId) => {
+              if (projectRef.current !== selectedProjectId || pipelineRef.current !== selectedPipelineId) return;
               setSelectedPipelineRunId(runId);
               setPage("exports");
             }}
           />
         );
       case "exports":
-        return <ExportPage projectId={selectedProjectId} pipelineRunId={selectedPipelineRunId} onRunSelected={handlePipelineRunSelected} />;
+        return <ExportPage key={selectedProjectId} projectId={selectedProjectId} pipelineRunId={selectedPipelineRunId} onRunSelected={handlePipelineRunSelected} />;
       default:
         return <DashboardPage dashboard={dashboard} onCreateProject={() => setPage("create")} onSelectProject={chooseProject} />;
     }
@@ -426,6 +486,7 @@ export default function App() {
             </div>
           </section>
         ) : null}
+        {error ? <ErrorState message={error} onRetry={() => { refreshDashboard(); refreshLoadedDatasets(selectedProjectId); }} /> : null}
         {renderPage()}
       </main>
     </div>

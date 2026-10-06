@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { apiClient } from "../api/client";
 import type { DatasetFile, DatasetPreview, Project } from "../api/types";
@@ -10,10 +10,12 @@ import { LoadingState } from "../components/LoadingState";
 
 export function UploadPage({
   selectedProjectId,
+  onProjectSelected,
   onUploaded,
   onAnalyzeReady
 }: {
   selectedProjectId: number | null;
+  onProjectSelected: (projectId: number) => void;
   onUploaded: (projectId: number, dataset: DatasetFile) => void;
   onAnalyzeReady: (projectId: number) => void;
 }) {
@@ -26,20 +28,26 @@ export function UploadPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
   useEffect(() => {
+    let active = true;
     apiClient
       .listProjects()
       .then((items) => {
+        if (!active) return;
         setProjects(items);
         if (items.length) {
           const selected = selectedProjectId && items.some((item) => item.id === selectedProjectId) ? selectedProjectId : items[0].id;
           setProjectId(String(selected));
+          if (selected !== selectedProjectId) onProjectSelected(selected);
         }
       })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [selectedProjectId]);
+      .catch((err: Error) => { if (active) setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [selectedProjectId, onProjectSelected]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,8 +60,10 @@ export function UploadPage({
     setError(null);
     try {
       const response = await apiClient.uploadDataset({ projectId: Number(projectId), role, file });
+      if (!mountedRef.current) return;
       setUploaded(response.dataset);
       const nextPreview = await apiClient.previewDataset(response.dataset.id, 5);
+      if (!mountedRef.current) return;
       setPreview(nextPreview);
       onUploaded(Number(projectId), response.dataset);
     } catch (err) {
@@ -77,7 +87,7 @@ export function UploadPage({
         {error ? <ErrorState message={error} /> : null}
         <label>
           <span>Project</span>
-          <select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+          <select value={projectId} disabled={saving} onChange={(event) => onProjectSelected(Number(event.target.value))}>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}

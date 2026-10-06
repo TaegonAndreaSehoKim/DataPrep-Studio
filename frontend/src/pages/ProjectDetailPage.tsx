@@ -29,12 +29,15 @@ export function ProjectDetailPage({
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(Boolean(projectId));
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!projectId) {
       return;
     }
     setLoading(true);
+    setError(null);
+    let active = true;
     Promise.all([
       apiClient.getProject(projectId),
       apiClient.listProjectDatasets(projectId),
@@ -42,14 +45,16 @@ export function ProjectDetailPage({
       apiClient.listPipelines(projectId)
     ])
       .then(([projectResult, datasetResult, analysisResult, pipelineResult]) => {
+        if (!active) return;
         setProject(projectResult);
         setDatasets(datasetResult);
         setAnalyses(analysisResult);
         setPipelines(pipelineResult);
       })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [projectId]);
+      .catch((err: Error) => { if (active) setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [projectId, retry]);
 
   async function deleteCurrentProject() {
     if (!projectId) {
@@ -76,7 +81,7 @@ export function ProjectDetailPage({
   }
 
   if (error) {
-    return <ErrorState message={error} />;
+    return <ErrorState message={error} onRetry={() => setRetry((current) => current + 1)} />;
   }
 
   return (

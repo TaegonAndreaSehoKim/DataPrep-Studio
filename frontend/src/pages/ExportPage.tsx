@@ -21,17 +21,22 @@ export function ExportPage({
   const [selected, setSelected] = useState<PipelineRun | null>(null);
   const [loading, setLoading] = useState(Boolean(projectId || pipelineRunId));
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
+    let active = true;
     const loader = pipelineRunId
       ? apiClient.getPipelineRun(pipelineRunId).then((run) => {
+          if (!active) return;
           setSelected(run);
           onRunSelected(run);
-          return projectId ? apiClient.listProjectPipelineRuns(projectId).then(setRuns) : undefined;
+          return projectId ? apiClient.listProjectPipelineRuns(projectId).then((items) => { if (active) setRuns(items); }) : undefined;
         })
       : projectId
         ? apiClient.listProjectPipelineRuns(projectId).then((items) => {
+          if (!active) return;
           setRuns(items);
           const firstRun = items[0] ?? null;
           setSelected(firstRun);
@@ -41,8 +46,9 @@ export function ExportPage({
         })
         : Promise.resolve();
 
-    loader.catch((err: Error) => setError(err.message)).finally(() => setLoading(false));
-  }, [onRunSelected, projectId, pipelineRunId]);
+    loader.catch((err: Error) => { if (active) setError(err.message); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [onRunSelected, projectId, pipelineRunId, retry]);
 
   if (!projectId && !pipelineRunId) {
     return <EmptyState title="No project selected" message="Apply a pipeline to create export artifacts." />;
@@ -53,7 +59,7 @@ export function ExportPage({
   }
 
   if (error) {
-    return <ErrorState message={error} />;
+    return <ErrorState message={error} onRetry={() => setRetry((current) => current + 1)} />;
   }
 
   return (
