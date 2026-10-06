@@ -639,6 +639,9 @@ export function AnalysisPage({
             {driftSummary ? (
               <div className="analysis-detail-panel">
                 <strong>Train/Test Drift</strong>
+                {comparison?.summary && typeof comparison.summary === "object" && (comparison.summary as Record<string, unknown>).test_target_present === false ? (
+                  <p>Test has no target column. Feature drift is checked; target distribution comparison is unavailable.</p>
+                ) : null}
                 <div className="train-test-summary-grid">
                   <section>
                     <span className="field-label">Drift Score</span>

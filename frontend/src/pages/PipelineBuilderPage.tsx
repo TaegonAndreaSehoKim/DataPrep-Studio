@@ -54,6 +54,7 @@ export function PipelineBuilderPage({
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [operations, setOperations] = useState<OperationMetadata[]>([]);
   const [columnProfiles, setColumnProfiles] = useState<ColumnProfile[]>([]);
+  const [testHasTarget, setTestHasTarget] = useState<boolean | null>(null);
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [validation, setValidation] = useState<PipelineValidation | null>(null);
   const [name, setName] = useState("baseline preprocessing");
@@ -92,6 +93,8 @@ export function PipelineBuilderPage({
   const sourcedSteps = useMemo(() => selectedPipeline?.steps.filter((step) => stepSource(step)) ?? [], [selectedPipeline]);
   const analysisOptions = analyses.find((item) => item.id === selectedPipeline?.analysis_run_id)?.options;
   const setupAlreadyAdded = Boolean(selectedPipeline?.steps.some((step) => stepSource(step)?.type === "analysis_setup"));
+  const targetColumn = analyses.find((item) => item.id === Number(selectedAnalysis))?.target_column;
+  const unlabeledTest = mode === "train_test" && testHasTarget === false;
 
   async function addAnalysisSetup() {
     if (!selectedPipeline || saving) return;
@@ -167,12 +170,19 @@ export function PipelineBuilderPage({
   useEffect(() => {
     if (!selectedAnalysis) {
       setColumnProfiles([]);
+      setTestHasTarget(null);
       return;
     }
+    setTestHasTarget(null);
     let active = true;
-    apiClient
-      .listColumns(Number(selectedAnalysis))
-      .then((columns) => { if (active) setColumnProfiles(columns); })
+    Promise.all([apiClient.listColumns(Number(selectedAnalysis)), apiClient.getTrainTestComparison(Number(selectedAnalysis)).catch(() => null)])
+      .then(([columns, comparison]) => {
+        if (!active) return;
+        setColumnProfiles(columns);
+        const summary = comparison?.summary;
+        const present = summary && typeof summary === "object" ? (summary as Record<string, unknown>).test_target_present : null;
+        setTestHasTarget(typeof present === "boolean" ? present : null);
+      })
       .catch((err: Error) => { if (active) setError(err.message); });
     return () => { active = false; };
   }, [selectedAnalysis]);
@@ -451,6 +461,7 @@ export function PipelineBuilderPage({
                 <small>
                   {selectedPipeline.mode} / {selectedPipeline.status} / {selectedPipeline.steps.length} steps
                 </small>
+                {unlabeledTest ? <small>Test has no target. Feature steps preserve the train target; target distribution comparison is unavailable.</small> : null}
               </div>
               <div>
                 <span className="field-label">Recommendation/Issue Steps</span>
@@ -613,7 +624,8 @@ export function PipelineBuilderPage({
                 {availableColumns.length ? (
                   <div className="checkbox-grid">
                     {availableColumns.map((column) => {
-                      const isSupported = !operation || operation.supported_column_types.includes("any") || operation.supported_column_types.includes(column.type);
+                      const isTarget = unlabeledTest && column.name === targetColumn;
+                      const isSupported = !isTarget && (!operation || operation.supported_column_types.includes("any") || operation.supported_column_types.includes(column.type));
                       return (
                         <label className="checkbox-row" key={column.name}>
                           <input
@@ -627,7 +639,7 @@ export function PipelineBuilderPage({
                             }}
                           />
                           <span>{column.name}</span>
-                          <small>{isSupported ? column.type : `${column.type} not supported`}</small>
+                          <small>{isTarget ? "train target; preserved" : isSupported ? column.type : `${column.type} not supported`}</small>
                         </label>
                       );
                     })}

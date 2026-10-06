@@ -226,6 +226,8 @@ def generate_analysis_report(
 
     lines.extend(["", "## Train/Test Drift"])
     if comparison is not None:
+        if _json_loads(comparison.summary_json, {}).get("test_target_present") is False:
+            lines.append("- Test has no target column. Feature drift is checked; target distribution comparison is unavailable.")
         lines.extend(
             [
                 f"- Drift score: {_fmt_score(comparison.drift_score)}",

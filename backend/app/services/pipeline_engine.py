@@ -152,20 +152,49 @@ def apply_pipeline_single(df: pd.DataFrame, steps: list[PipelineStepSpec]) -> Pi
     return PipelineResult(single_df=working, step_effects=effects, fitted_params=fitted_params, warnings=warnings)
 
 
-def apply_pipeline_train_test(train_df: pd.DataFrame, test_df: pd.DataFrame, steps: list[PipelineStepSpec]) -> PipelineResult:
+def prepare_train_test_step(step: PipelineStepSpec, train_columns: list[str], test_columns: list[str], target_column: str | None) -> dict[str, Any]:
+    """Keep an absent test label separate from feature transforms without skipping missing features."""
+    if not target_column or target_column not in train_columns or target_column in test_columns:
+        return step.params
+    selected = list(step.columns)
+    for key in ["subset", "column_order"]:
+        value = step.params.get(key)
+        if isinstance(value, list):
+            selected.extend(value)
+    rename_map = step.params.get("rename_map")
+    if isinstance(rename_map, dict):
+        selected.extend(rename_map)
+    if target_column in selected:
+        raise TransformationError(f"Target column {target_column} is absent from test; select feature columns only and keep the train target unchanged")
+    subset = step.params.get("subset", [])
+    if step.operation_type == "remove_duplicate_rows" and not step.columns and isinstance(subset, list) and not subset:
+        features = [column for column in train_columns if column != target_column]
+        if not features:
+            raise TransformationError("Duplicate-row comparison requires at least one feature column")
+        return {**step.params, "subset": features}
+    return step.params
+
+
+def apply_pipeline_train_test(train_df: pd.DataFrame, test_df: pd.DataFrame, steps: list[PipelineStepSpec], target_column: str | None = None) -> PipelineResult:
     train_working = train_df.copy()
     test_working = test_df.copy()
     effects: list[dict[str, Any]] = []
     fitted_params: list[dict[str, Any]] = []
     warnings: list[str] = []
+    unlabeled_test = bool(target_column and target_column in train_df.columns and target_column not in test_df.columns)
+    if unlabeled_test:
+        warnings.append(f"Test has no target column {target_column}; feature preprocessing preserves the train target unchanged. Target distribution comparison is unavailable.")
 
     for step in sorted([item for item in steps if item.enabled], key=lambda item: item.order_index):
         try:
-            train_working, fitted, train_effect = fit_transform_step(train_working, step.operation_type, step.columns, step.params)
+            params = prepare_train_test_step(step, list(train_working.columns), list(test_working.columns), target_column)
+            if params is not step.params:
+                warnings.append(f"Step {step.id}: duplicate-row comparison uses feature columns and excludes the train target.")
+            train_working, fitted, train_effect = fit_transform_step(train_working, step.operation_type, step.columns, params)
             test_working, test_effect = transform_step(test_working, step.operation_type, step.columns, fitted)
         except TransformationError as exc:
             raise TransformationError(f"Step {step.id} failed: {exc}") from exc
-        fitted_entry = {"step_id": step.id, "operation_type": step.operation_type, "columns": step.columns, "params": step.params, "fitted": fitted}
+        fitted_entry = {"step_id": step.id, "operation_type": step.operation_type, "columns": step.columns, "params": params, "fitted": fitted}
         fitted_params.append(fitted_entry)
         effect = _effect_to_dict(step, train_effect, fitted)
         effect["test_summary"] = test_effect.summary
@@ -212,7 +241,7 @@ def preview_train_test(
     limit: int,
 ) -> dict[str, Any]:
     before_summary = {"train": summarize_dataframe(train_df), "test": summarize_dataframe(test_df)}
-    result = apply_pipeline_train_test(train_df, test_df, steps)
+    result = apply_pipeline_train_test(train_df, test_df, steps, target_column)
     assert result.train_df is not None and result.test_df is not None
     after_summary = {"train": summarize_dataframe(result.train_df), "test": summarize_dataframe(result.test_df)}
     after_summary["train"]["readiness"] = readiness_for_dataframe(result.train_df, target_column, problem_type)

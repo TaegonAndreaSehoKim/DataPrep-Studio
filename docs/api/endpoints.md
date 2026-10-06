@@ -38,6 +38,7 @@ This file tracks the implemented API surface for the local MVP.
 ## Analysis
 
 - `POST /projects/{project_id}/analysis/run`
+  - In train/test mode the selected target is required in train and optional in test. An unlabeled test excludes the target from feature schema mismatch checks and reports `test_target_present: false` and `target_distribution_status: "not_available"` in the comparison summary.
 - `GET /analysis/{analysis_id}`
   - Analysis responses include an immutable `options` snapshot (mode, saved setup ID, type overrides, missing tokens, ignored columns). Legacy runs without a snapshot return `null`.
 - `GET /analysis/{analysis_id}/overview`

@@ -35,6 +35,7 @@ from app.services.pipeline_engine import (
     PipelineStepSpec,
     apply_pipeline_single,
     apply_pipeline_train_test,
+    prepare_train_test_step,
     summarize_dataframe,
 )
 from app.services.suggestion_builder import build_suggested_pipeline_steps, build_suggested_step
@@ -595,6 +596,8 @@ def validate_pipeline(pipeline_id: int, db: Session = Depends(get_db)) -> Pipeli
     dataset = db.get(DatasetFile, source_id) if source_id else _latest_dataset(db, pipeline.project_id, "single" if pipeline.mode == "single" else "train")
     if dataset:
         current_column_types = {**{column: "unknown" for column in _json_loads(dataset.columns_json, [])}, **current_column_types}
+    test_dataset = db.get(DatasetFile, analysis.test_dataset_file_id) if analysis and analysis.test_dataset_file_id else None
+    test_columns = _json_loads(test_dataset.columns_json, []) if test_dataset else []
 
     issues: list[PipelineValidationIssue] = []
     if not steps:
@@ -602,6 +605,12 @@ def validate_pipeline(pipeline_id: int, db: Session = Depends(get_db)) -> Pipeli
     for step in steps:
         if not step.enabled:
             continue
+        if pipeline.mode == "train_test" and analysis and test_dataset:
+            spec = PipelineStepSpec(step.id, step.order_index, step.enabled, step.operation_type, _json_loads(step.columns_json, []), _json_loads(step.params_json, {}))
+            try:
+                prepare_train_test_step(spec, list(current_column_types), test_columns, analysis.target_column)
+            except TransformationError as exc:
+                issues.append(PipelineValidationIssue(severity="error", step_id=step.id, operation_type=step.operation_type, message=str(exc)))
         step_issues = _validate_step_against_metadata(step, metadata_by_type, current_column_types)
         issues.extend(step_issues)
         if not any(issue.severity == "error" for issue in step_issues):
@@ -792,7 +801,7 @@ def apply_pipeline(pipeline_id: int, payload: PreviewRequest | None = None, db: 
             train_df = read_csv_file(train_dataset.storage_path)
             test_df = read_csv_file(test_dataset.storage_path)
             before_summary = {"train": summarize_dataframe(train_df), "test": summarize_dataframe(test_df)}
-            result = apply_pipeline_train_test(train_df, test_df, steps)
+            result = apply_pipeline_train_test(train_df, test_df, steps, target_column)
             assert result.train_df is not None and result.test_df is not None
             after_summary = {"train": summarize_dataframe(result.train_df), "test": summarize_dataframe(result.test_df)}
             input_file_names = [train_dataset.filename, test_dataset.filename]

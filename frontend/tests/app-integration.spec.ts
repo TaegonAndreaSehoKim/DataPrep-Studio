@@ -14,8 +14,10 @@ async function download(page: Page, label: string, path: string) {
   return readFile(path, "utf8");
 }
 
-for (const mode of ["single", "train_test"] as const) {
-  test(`real API: ${mode} upload analysis recipe preview apply and replay`, async ({ page }, testInfo) => {
+for (const scenario of ["single", "train_test", "unlabeled_test"] as const) {
+  const mode = scenario === "single" ? "single" : "train_test";
+  const unlabeled = scenario === "unlabeled_test";
+  test(`real API: ${scenario} upload analysis recipe preview apply and replay`, async ({ page }, testInfo) => {
     const pageErrors: string[] = [];
     let chartRequests = 0;
     page.on("request", (request) => { if (request.url().endsWith("/preview/charts")) chartRequests += 1; });
@@ -25,7 +27,7 @@ for (const mode of ["single", "train_test"] as const) {
       single: "age,notes,target\n10,a,0\n ?,b,1\n30,c,0\n",
     } : {
       train: "age,notes,target\n10,a,0\n ?,b,1\n30,c,0\n",
-      test: "age,notes,target\n ?,d,0\n9000,e,1\n",
+      test: unlabeled ? "age,notes\n ?,d\n9000,e\n" : "age,notes,target\n ?,d,0\n9000,e,1\n",
     };
     try {
       await page.goto("/");
@@ -62,6 +64,7 @@ for (const mode of ["single", "train_test"] as const) {
       const analyzed = await analysisResponse;
       expect(analyzed.status()).toBe(201);
       const analysis = await analyzed.json();
+      if (unlabeled) await expect(page.locator(".analysis-detail-panel").getByText("Test has no target column. Feature drift is checked; target distribution comparison is unavailable.")).toBeVisible();
       await expect(page.getByLabel("Current workspace context")).toContainText(`Score ${analysis.readiness_score.toFixed(1)}`);
       await page.getByRole("button", { name: /^Build Pipeline/ }).click();
       await page.getByRole("combobox", { name: "Mode", exact: true }).selectOption(mode);
@@ -69,6 +72,7 @@ for (const mode of ["single", "train_test"] as const) {
       await page.getByRole("button", { name: "Create Pipeline", exact: true }).click();
       const pipelineId = (await (await pipelineResponse).json()).id;
       await expect(page.getByRole("button", { name: "Add Analysis Setup Steps", exact: true })).toBeVisible();
+      if (unlabeled) await expect(page.getByRole("checkbox", { name: /^target / })).toBeDisabled();
       for (const operation of ["add_missing_indicator", "numeric_imputation"]) {
         await page.getByRole("combobox", { name: "Choose Operation", exact: true }).selectOption(operation);
         await page.getByRole("checkbox", { name: /^age / }).check();
@@ -83,6 +87,7 @@ for (const mode of ["single", "train_test"] as const) {
       await expect(page.getByText("Pipeline is valid", { exact: true })).toBeVisible();
       await page.getByRole("main").getByRole("button", { name: "Preview", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Pipeline Preview", exact: true })).toBeVisible();
+      if (unlabeled) await expect(page.getByText(/^Test has no target column target;/)).toBeVisible();
       const applyResponse = page.waitForResponse((response) => response.url() === `${apiBase}/pipelines/${pipelineId}/apply` && response.request().method() === "POST");
       await page.getByRole("button", { name: "Apply Pipeline", exact: true }).click();
       const applied = await applyResponse;
@@ -100,9 +105,9 @@ for (const mode of ["single", "train_test"] as const) {
         const label = role === "single" ? "Cleaned CSV" : role === "train" ? "Clean Train" : "Clean Test";
         const cleanPath = testInfo.outputPath(`clean_${role}.csv`);
         const cleaned = await download(page, label, cleanPath);
-        expect(cleaned.split(/\r?\n/)[0]).toBe("age,target,age_was_missing");
+        expect(cleaned.split(/\r?\n/)[0]).toBe(unlabeled && role === "test" ? "age,age_was_missing" : "age,target,age_was_missing");
         const missingRow = role === "test" ? 1 : 2;
-        expect(cleaned.split(/\r?\n/)[missingRow]).toBe(`20.0,${role === "test" ? 0 : 1},1`);
+        expect(cleaned.split(/\r?\n/)[missingRow]).toBe(unlabeled && role === "test" ? "20.0,1" : `20.0,${role === "test" ? 0 : 1},1`);
         const inputPath = testInfo.outputPath(`input_${role}.csv`);
         await writeFile(inputPath, csv);
         const replay = spawnSync(testPython, ["-c", "import sys,runpy,pandas as pd; ns=runpy.run_path(sys.argv[1]); actual=ns['apply_pipeline'](pd.read_csv(sys.argv[2])); expected=pd.read_csv(sys.argv[3]); pd.testing.assert_frame_equal(actual,expected,check_dtype=False)", codePath, inputPath, cleanPath], { encoding: "utf8", timeout: 30_000 });

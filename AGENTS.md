@@ -201,6 +201,7 @@ Lower priority for now:
 
 1. Train/test leakage is the highest-risk bug class.
    Any operation with learned parameters must fit on train only.
+   Test may omit the selected target; missing features remain errors. Feature preprocessing preserves train labels when test is unlabeled, and target-changing steps are rejected. Default deduplication uses feature columns in this case; keep its explicit processing notes and exported subset.
 
 2. Readiness score is a heuristic.
    Do not present it as a guarantee of model performance.

@@ -128,9 +128,10 @@ def detect_train_test_drift(
     summary: dict[str, object] = {
         "row_counts": {"train": int(len(train_df)), "test": int(len(test_df))},
         "column_counts": {"train": int(len(train_df.columns)), "test": int(len(test_df.columns))},
-        "missing_columns_in_test": sorted([str(column) for column in train_df.columns if column not in test_df.columns]),
+        "missing_columns_in_test": sorted([str(column) for column in train_df.columns if column not in test_df.columns and column != target_column]),
         "extra_columns_in_test": sorted([str(column) for column in test_df.columns if column not in train_df.columns]),
         "columns": {},
+        "test_target_present": target_column in test_df.columns if target_column else None,
     }
 
     if summary["missing_columns_in_test"] or summary["extra_columns_in_test"]:
@@ -139,7 +140,7 @@ def detect_train_test_drift(
                 severity="warning",
                 category="split",
                 title="Train/test column mismatch",
-                explanation="Train and test datasets do not have identical columns.",
+                explanation="Train and test feature columns do not match. An omitted test target is allowed.",
                 affected_columns=list(summary["missing_columns_in_test"]) + list(summary["extra_columns_in_test"]),
                 suggested_actions=["align train/test columns", "verify split/export process"],
             )
@@ -191,6 +192,7 @@ def detect_train_test_drift(
 
     summary["columns"] = column_summaries
     target_shift = _target_distribution_shift(train_df, test_df, target_column, problem_type)
+    summary["target_distribution_status"] = "available" if target_shift is not None else "not_available" if target_column else "not_configured"
     if target_shift is not None:
         summary["target_distribution"] = target_shift
         if target_shift["drift_flag"]:

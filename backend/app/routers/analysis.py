@@ -272,8 +272,6 @@ def run_analysis(project_id: int, payload: AnalysisRunCreate, db: Session = Depe
 
     if target_column and target_column not in train_df.columns:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Target column does not exist in the train dataset")
-    if target_column and target_column not in test_df.columns:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Target column does not exist in the test dataset")
 
     train_profiles = profile_dataframe(
         train_df,
@@ -285,7 +283,7 @@ def run_analysis(project_id: int, payload: AnalysisRunCreate, db: Session = Depe
     test_profiles = profile_dataframe(
         test_df,
         "test",
-        target_column,
+        target_column if target_column in test_df.columns else None,
         problem_type,
         column_type_overrides,
     )

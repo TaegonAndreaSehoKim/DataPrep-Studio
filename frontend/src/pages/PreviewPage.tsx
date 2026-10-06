@@ -88,6 +88,11 @@ export function PreviewPage({
         <BeforeAfterPanel before={preview.before_summary} after={preview.after_summary} />
       </Card>
       <AnalysisCharts charts={preview.charts} />
+      {preview.warnings.length ? (
+        <Card title="Processing Notes">
+          <ul>{preview.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>
+        </Card>
+      ) : null}
       <Card title="Column Changes">
         {preview.column_diffs.length ? (
           <div className="preview-table-wrap no-margin">

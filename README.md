@@ -131,6 +131,7 @@ The app runs locally for development and is also available as a public AWS EC2 d
 
 1. Create a project.
 2. Upload a CSV dataset or train/test CSV pair.
+   A test CSV may omit the target column. Train labels are retained; feature transformations fit on train and apply to test.
 3. Confirm the workflow progress and loaded workspace context.
 4. Select the target column and problem type.
 5. Optionally save the setup for reuse.
