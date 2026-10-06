@@ -23,9 +23,17 @@ class TransformationError(ValueError):
 
 
 def _require_columns(df: pd.DataFrame, columns: list[str]) -> None:
+    if len(columns) != len(set(columns)):
+        raise TransformationError("Selected columns must not contain duplicates")
     missing = [column for column in columns if column not in df.columns]
     if missing:
         raise TransformationError(f"Columns do not exist: {', '.join(missing)}")
+
+
+def _require_new_columns(df: pd.DataFrame, columns: list[str]) -> None:
+    existing = [column for column in columns if column in df.columns]
+    if existing or len(columns) != len(set(columns)):
+        raise TransformationError(f"Generated column already exists or repeats: {', '.join(existing or columns)}")
 
 
 def _target_columns(df: pd.DataFrame, columns: list[str]) -> list[str]:
@@ -42,6 +50,7 @@ def _apply_datetime(df: pd.DataFrame, columns: list[str], fitted: dict[str, Any]
     for column in columns:
         date_format = fitted.get("date_formats", {}).get(column, fitted.get("date_format"))
         parsed = pd.to_datetime(df[column], format=date_format, errors="coerce")
+        _require_new_columns(df, [f"{column}_{feature}" for feature in fitted["features"]])
         values = {
             "year": parsed.dt.year, "month": parsed.dt.month, "day": parsed.dt.day,
             "day_of_week": parsed.dt.dayofweek,
@@ -139,6 +148,7 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
         created = []
         for column in columns:
             new_column = f"{column}{suffix}"
+            _require_new_columns(working, [new_column])
             working[new_column] = working[column].isna().astype(int)
             created.append(new_column)
         return working, {"created_columns": created, "suffix": suffix}, StepEffect(operation_type, columns, f"Created {len(created)} missingness indicators.", before_shape, {"columns": int(len(working.columns))})
@@ -175,7 +185,8 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
             if drop_first and cats:
                 cats = cats[1:]
             categories[column] = cats
-        return _apply_one_hot(working, columns, categories), {"categories": categories, "drop_first": drop_first}, StepEffect(operation_type, columns, "One-hot encoded categorical columns.")
+        output_columns = _one_hot_column_names(working, categories)
+        return _apply_one_hot(working, columns, categories, output_columns), {"categories": categories, "drop_first": drop_first, "output_columns": output_columns}, StepEffect(operation_type, columns, "One-hot encoded categorical columns.")
 
     if operation_type == "ordinal_encoding":
         provided = params.get("categories_order", {})
@@ -270,6 +281,7 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
             if replace_original:
                 working[column] = transformed
             else:
+                _require_new_columns(working, [f"{column}{suffix}"])
                 working[f"{column}{suffix}"] = transformed
         return working, {"offset": offset, "replace_original": replace_original, "new_suffix": suffix}, StepEffect(operation_type, columns, "Applied log1p transform.")
 
@@ -300,8 +312,10 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
             if lowercase:
                 text = text.str.lower()
             if create_length:
+                _require_new_columns(working, [f"{column}_length"])
                 working[f"{column}_length"] = text.str.len()
             if create_word_count:
+                _require_new_columns(working, [f"{column}_word_count"])
                 working[f"{column}_word_count"] = text.str.split().str.len()
             if drop_original:
                 working = working.drop(columns=[column])
@@ -325,6 +339,8 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
             raise TransformationError("rename_map must be an object")
         _require_columns(working, [str(column) for column in rename_map.keys()])
         working = working.rename(columns={str(key): str(value) for key, value in rename_map.items()})
+        if not working.columns.is_unique:
+            raise TransformationError("Rename targets conflict with existing columns")
         return working, {"rename_map": rename_map}, StepEffect(operation_type, list(rename_map.keys()), "Renamed columns.")
 
     if operation_type == "reorder_columns":
@@ -373,6 +389,7 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
     if operation_type == "add_missing_indicator":
         suffix = fitted_params["suffix"]
         for column in columns:
+            _require_new_columns(working, [f"{column}{suffix}"])
             working[f"{column}{suffix}"] = working[column].isna().astype(int)
         return working, StepEffect(operation_type, columns, "Created missingness indicators.")
 
@@ -388,7 +405,7 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
         return working, StepEffect(operation_type, columns, "Grouped rare and unseen categories.")
 
     if operation_type == "one_hot_encoding":
-        return _apply_one_hot(working, columns, fitted_params["categories"]), StepEffect(operation_type, columns, "One-hot encoded with train categories.")
+        return _apply_one_hot(working, columns, fitted_params["categories"], fitted_params.get("output_columns")), StepEffect(operation_type, columns, "One-hot encoded with train categories.")
 
     if operation_type == "ordinal_encoding":
         unknown_value = fitted_params["unknown_value"]
@@ -432,14 +449,32 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
     return fit_transform_step(working, operation_type, columns, fitted_params)[0], StepEffect(operation_type, columns, "Applied stateless transform.")
 
 
-def _apply_one_hot(df: pd.DataFrame, columns: list[str], categories: dict[str, list[str]]) -> pd.DataFrame:
+def _one_hot_column_names(df: pd.DataFrame, categories: dict[str, list[str]]) -> dict[str, dict[str, str]]:
+    reserved = set(df.columns)
+    mapping = {}
+    for column, values in categories.items():
+        mapping[column] = {}
+        for category in values:
+            safe_category = "".join(char if char.isalnum() or char == "_" else "_" for char in category)
+            base = f"{column}_{safe_category}"
+            name, suffix = base, 2
+            while name in reserved:
+                name = f"{base}__{suffix}"
+                suffix += 1
+            reserved.add(name)
+            mapping[column][category] = name
+    return mapping
+
+
+def _apply_one_hot(df: pd.DataFrame, columns: list[str], categories: dict[str, list[str]], output_columns: dict[str, dict[str, str]] | None = None) -> pd.DataFrame:
     working = df.copy()
+    _require_columns(working, columns)
+    output_columns = output_columns or _one_hot_column_names(working, categories)
     for column in columns:
-        if column not in working.columns:
-            continue
         source = working[column].astype(str)
         for category in categories.get(column, []):
-            safe_category = "".join(char if char.isalnum() or char == "_" else "_" for char in str(category))
-            working[f"{column}_{safe_category}"] = (source == category).astype(int)
+            name = output_columns[column][category]
+            _require_new_columns(working, [name])
+            working[name] = (source == category).astype(int)
         working = working.drop(columns=[column])
     return working

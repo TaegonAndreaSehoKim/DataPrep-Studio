@@ -25,6 +25,11 @@ def _safe_category(value: object) -> str:
     return "".join(char if char.isalnum() or char == "_" else "_" for char in str(value))
 
 
+def _require_new_column(df: pd.DataFrame, name: str) -> None:
+    if name in df.columns:
+        raise ValueError(f"Generated column already exists: {{name}}")
+
+
 def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
     working = df.copy()
     operation = step["operation_type"]
@@ -69,6 +74,7 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
         suffix = fitted.get("suffix", "_was_missing")
         for column in columns:
             if column in working.columns:
+                _require_new_column(working, f"{{column}}{{suffix}}")
                 working[f"{{column}}{{suffix}}"] = working[column].isna().astype(int)
         return working
 
@@ -89,7 +95,9 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
                 continue
             source = working[column].astype(str)
             for category in categories:
-                working[f"{{column}}_{{_safe_category(category)}}"] = (source == category).astype(int)
+                name = fitted.get("output_columns", {{}}).get(column, {{}}).get(category, f"{{column}}_{{_safe_category(category)}}")
+                _require_new_column(working, name)
+                working[name] = (source == category).astype(int)
             working = working.drop(columns=[column])
         return working
 
@@ -142,6 +150,7 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
                 if replace_original:
                     working[column] = transformed
                 else:
+                    _require_new_column(working, f"{{column}}{{suffix}}")
                     working[f"{{column}}{{suffix}}"] = transformed
         return working
 
@@ -154,6 +163,8 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
                 continue
             column_format = fitted.get("date_formats", {{}}).get(column, date_format)
             parsed = pd.to_datetime(working[column], format=column_format, errors="coerce")
+            for feature in features:
+                _require_new_column(working, f"{{column}}_{{feature}}")
             if "year" in features:
                 working[f"{{column}}_year"] = parsed.dt.year
             if "month" in features:
@@ -183,8 +194,10 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
             if lowercase:
                 text = text.str.lower()
             if create_length:
+                _require_new_column(working, f"{{column}}_length")
                 working[f"{{column}}_length"] = text.str.len()
             if create_word_count:
+                _require_new_column(working, f"{{column}}_word_count")
                 working[f"{{column}}_word_count"] = text.str.split().str.len()
             if drop_original:
                 working = working.drop(columns=[column])
@@ -193,7 +206,10 @@ def apply_fitted_step(df: pd.DataFrame, step: dict) -> pd.DataFrame:
         return working
 
     if operation == "rename_columns":
-        return working.rename(columns=fitted.get("rename_map", {{}}))
+        renamed = working.rename(columns=fitted.get("rename_map", {{}}))
+        if not renamed.columns.is_unique:
+            raise ValueError("Rename targets conflict with existing columns")
+        return renamed
 
     if operation == "reorder_columns":
         order = [column for column in fitted.get("column_order", []) if column in working.columns]

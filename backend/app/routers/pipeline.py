@@ -187,6 +187,9 @@ def _validate_step_against_metadata(
             )
         )
 
+    if len(columns) != len(set(columns)):
+        issues.append(PipelineValidationIssue(severity="error", step_id=step.id, operation_type=step.operation_type, message="Selected columns must not contain duplicates"))
+
     if current_column_types and isinstance(columns, list):
         supported = set(metadata.supported_column_types)
         for column in columns:
@@ -240,6 +243,26 @@ def _validate_operation_dependencies(
     issues: list[PipelineValidationIssue] = []
     if not current_column_types:
         return issues
+
+    generated: list[str] = []
+    if step.operation_type == "add_missing_indicator":
+        generated = [f"{column}{params.get('suffix', '_was_missing')}" for column in columns]
+    elif step.operation_type == "log_transform" and not params.get("replace_original", True):
+        generated = [f"{column}{params.get('new_suffix', '_log')}" for column in columns]
+    elif step.operation_type == "datetime_extract" and isinstance(params.get("features", []), list):
+        features = params.get("features", ["year", "month", "day", "day_of_week", "is_weekend"])
+        generated = [f"{column}_{feature}" for column in columns for feature in features]
+    elif step.operation_type == "text_basic_features":
+        generated = [f"{column}_{suffix}" for column in columns for suffix, enabled in [
+            ("length", params.get("create_length_feature", True)),
+            ("word_count", params.get("create_word_count_feature", True)),
+        ] if enabled]
+    for column in generated:
+        if column in current_column_types:
+            issues.append(PipelineValidationIssue(
+                severity="error", step_id=step.id, operation_type=step.operation_type,
+                message=f"Generated column already exists: {column}",
+            ))
 
     if step.operation_type == "remove_duplicate_rows":
         subset = params.get("subset") or columns
@@ -349,11 +372,7 @@ def _apply_step_column_state(step: PipelineStep, current_column_types: dict[str,
     elif step.operation_type == "rename_columns":
         rename_map = params.get("rename_map", {})
         if isinstance(rename_map, dict):
-            for source, target in rename_map.items():
-                source_name = str(source)
-                target_name = str(target)
-                if source_name in next_types:
-                    next_types[target_name] = next_types.pop(source_name)
+            next_types = {str(rename_map.get(column, column)): type_ for column, type_ in next_types.items()}
 
     return next_types
 
