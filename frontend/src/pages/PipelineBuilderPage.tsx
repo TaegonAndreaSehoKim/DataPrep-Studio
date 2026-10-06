@@ -73,6 +73,28 @@ export function PipelineBuilderPage({
   const [retry, setRetry] = useState(0);
   const applyLock = useRef(false);
   const consumedDraftRef = useRef<SuggestedPipelineStep | null>(null);
+  const mountedRef = useRef(true);
+  const pipelineSelectionRef = useRef<number | null>(pipelineId);
+  const pipelineRevisionRef = useRef(0);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  useEffect(() => { pipelineSelectionRef.current = pipelineId; }, [pipelineId]);
+
+  function isCurrentPipeline(id: number | null) {
+    return mountedRef.current && pipelineSelectionRef.current === id;
+  }
+
+  function selectPipeline(pipeline: Pipeline | null) {
+    pipelineRevisionRef.current += 1;
+    pipelineSelectionRef.current = pipeline?.id ?? null;
+    setSelectedPipeline(pipeline);
+    setValidation(null);
+    if (pipeline) onPipelineSelected(pipeline.id);
+  }
+
+  function updateCurrentPipeline(pipeline: Pipeline) {
+    pipelineRevisionRef.current += 1;
+    setSelectedPipeline(pipeline);
+  }
 
   const operation = useMemo(
     () => operations.find((item) => item.operation_type === operationType) ?? null,
@@ -102,12 +124,13 @@ export function PipelineBuilderPage({
     setError(null);
     try {
       const updated = await apiClient.addAnalysisSetup(selectedPipeline.id);
-      setSelectedPipeline(updated);
+      if (!isCurrentPipeline(updated.id)) return;
+      updateCurrentPipeline(updated);
       setPipelines((current) => current.map((item) => item.id === updated.id ? updated : item));
       setValidation(null);
       setDraftNotice("Analysis setup added as editable steps before the existing recipe.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add analysis setup");
+      if (isCurrentPipeline(selectedPipeline.id)) setError(err instanceof Error ? err.message : "Failed to add analysis setup");
     } finally {
       setSaving(false);
     }
@@ -134,16 +157,17 @@ export function PipelineBuilderPage({
     if (!projectId) {
       return Promise.resolve();
     }
+    const requestedPipelineId = pipelineSelectionRef.current;
+    const requestedRevision = pipelineRevisionRef.current;
     return Promise.all([apiClient.listProjectAnalysis(projectId), apiClient.listPipelines(projectId), apiClient.listOperations()])
       .then(([analysisResult, pipelineResult, operationResult]) => {
-        if (!isCurrent()) return;
+        if (!isCurrent() || !isCurrentPipeline(requestedPipelineId) || requestedRevision !== pipelineRevisionRef.current) return;
         setAnalyses(analysisResult);
         setPipelines(pipelineResult);
         setOperations(operationResult);
-        const nextPipeline = pipelineId ? pipelineResult.find((item) => item.id === pipelineId) : pipelineResult[0];
-        setSelectedPipeline(nextPipeline ?? null);
+        const nextPipeline = requestedPipelineId ? pipelineResult.find((item) => item.id === requestedPipelineId) : pipelineResult[0];
+        selectPipeline(nextPipeline ?? null);
         if (nextPipeline) {
-          onPipelineSelected(nextPipeline.id);
           setMode(nextPipeline.mode);
           setSelectedAnalysis(nextPipeline.analysis_run_id ? String(nextPipeline.analysis_run_id) : "");
         }
@@ -215,6 +239,8 @@ export function PipelineBuilderPage({
         reason: initialStepDraft.reason
       }
     };
+    const originalSelection = pipelineSelectionRef.current;
+    let draftPipelineId = originalSelection;
     const ensurePipeline = selectedPipeline
       ? Promise.resolve(selectedPipeline)
       : projectId
@@ -231,21 +257,25 @@ export function PipelineBuilderPage({
         if (!pipeline) {
           throw new Error("Choose a project before adding a recommendation.");
         }
-        setSelectedPipeline(pipeline);
-        setPipelines((current) => [pipeline, ...current.filter((item) => item.id !== pipeline.id)]);
-        onPipelineSelected(pipeline.id);
+        draftPipelineId = pipeline.id;
+        if (isCurrentPipeline(originalSelection)) {
+          selectPipeline(pipeline);
+          setPipelines((current) => [pipeline, ...current.filter((item) => item.id !== pipeline.id)]);
+        }
         await apiClient.createPipelineStep(pipeline.id, {
           operation_type: initialStepDraft.operation_type,
           columns: initialStepDraft.columns,
           params: nextParams
         });
         const updated = await apiClient.getPipeline(pipeline.id);
-        setSelectedPipeline(updated);
+        if (!isCurrentPipeline(updated.id)) return;
+        updateCurrentPipeline(updated);
         setPipelines((current) => [updated, ...current.filter((item) => item.id !== updated.id)]);
         setValidation(null);
         setDraftNotice(`Added recommendation to pipeline: ${initialStepDraft.operation_type}.`);
       })
       .catch((err: Error) => {
+        if (!isCurrentPipeline(draftPipelineId)) return;
         setOperationType(initialStepDraft.operation_type);
         setSelectedColumns(initialStepDraft.columns);
         setParams(userParams(nextParams));
@@ -262,18 +292,20 @@ export function PipelineBuilderPage({
     }
     setSaving(true);
     setError(null);
+    const originalSelection = pipelineSelectionRef.current;
+    let errorPipelineId = originalSelection;
     try {
       const pipeline = await apiClient.createPipeline(projectId, {
         name,
         mode,
         analysis_run_id: selectedAnalysis ? Number(selectedAnalysis) : null
       });
-      setSelectedPipeline(pipeline);
-      setValidation(null);
-      onPipelineSelected(pipeline.id);
+      if (!isCurrentPipeline(originalSelection)) return;
+      errorPipelineId = pipeline.id;
+      selectPipeline(pipeline);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create pipeline");
+      if (isCurrentPipeline(errorPipelineId)) setError(err instanceof Error ? err.message : "Failed to create pipeline");
     } finally {
       setSaving(false);
     }
@@ -302,12 +334,13 @@ export function PipelineBuilderPage({
         params
       });
       const updated = await apiClient.getPipeline(selectedPipeline.id);
-      setSelectedPipeline(updated);
+      if (!isCurrentPipeline(updated.id)) return;
+      updateCurrentPipeline(updated);
       setPipelines((current) => [updated, ...current.filter((item) => item.id !== updated.id)]);
       setValidation(null);
       setDraftNotice(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add step");
+      if (isCurrentPipeline(selectedPipeline.id)) setError(err instanceof Error ? err.message : "Failed to add step");
     } finally {
       setSaving(false);
     }
@@ -320,6 +353,8 @@ export function PipelineBuilderPage({
     }
     setImporting(true);
     setError(null);
+    const originalSelection = pipelineSelectionRef.current;
+    let errorPipelineId = originalSelection;
     try {
       const parsed = JSON.parse(configText) as unknown;
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -330,13 +365,13 @@ export function PipelineBuilderPage({
         analysis_run_id: selectedAnalysis ? Number(selectedAnalysis) : null,
         config: parsed as Record<string, unknown>
       });
-      setSelectedPipeline(pipeline);
-      setValidation(null);
+      if (!isCurrentPipeline(originalSelection)) return;
+      errorPipelineId = pipeline.id;
+      selectPipeline(pipeline);
       setConfigText("");
-      onPipelineSelected(pipeline.id);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to import config");
+      if (isCurrentPipeline(errorPipelineId)) setError(err instanceof Error ? err.message : "Failed to import config");
     } finally {
       setImporting(false);
     }
@@ -344,7 +379,8 @@ export function PipelineBuilderPage({
 
   async function reloadPipeline(id: number) {
     const updated = await apiClient.getPipeline(id);
-    setSelectedPipeline(updated);
+    if (!isCurrentPipeline(id)) return;
+    updateCurrentPipeline(updated);
     setPipelines((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setValidation(null);
   }
@@ -355,9 +391,9 @@ export function PipelineBuilderPage({
     }
     try {
       const result = await apiClient.validatePipeline(selectedPipeline.id);
-      setValidation(result);
+      if (isCurrentPipeline(selectedPipeline.id)) setValidation(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to validate pipeline");
+      if (isCurrentPipeline(selectedPipeline.id)) setError(err instanceof Error ? err.message : "Failed to validate pipeline");
     }
   }
 
@@ -373,10 +409,11 @@ export function PipelineBuilderPage({
     [steps[index], steps[nextIndex]] = [steps[nextIndex], steps[index]];
     try {
       const updated = await apiClient.reorderPipelineSteps(selectedPipeline.id, steps.map((step) => step.id));
-      setSelectedPipeline(updated);
+      if (!isCurrentPipeline(updated.id)) return;
+      updateCurrentPipeline(updated);
       setValidation(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reorder pipeline steps");
+      if (isCurrentPipeline(selectedPipeline.id)) setError(err instanceof Error ? err.message : "Failed to reorder pipeline steps");
     }
   }
 
@@ -387,9 +424,9 @@ export function PipelineBuilderPage({
     setError(null);
     try {
       const run = await apiClient.applyPipeline(selectedPipeline.id);
-      onApplied(run.id);
+      if (isCurrentPipeline(run.pipeline_id)) onApplied(run.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Apply failed");
+      if (isCurrentPipeline(selectedPipeline.id)) setError(err instanceof Error ? err.message : "Apply failed");
     } finally {
       applyLock.current = false;
       setApplying(false);
@@ -436,11 +473,9 @@ export function PipelineBuilderPage({
 
         {pipelines.length ? (
           <div className="toolbar">
-            <select value={selectedPipeline?.id ?? ""} onChange={(event) => {
+            <select aria-label="Selected pipeline" value={selectedPipeline?.id ?? ""} onChange={(event) => {
               const pipeline = pipelines.find((item) => item.id === Number(event.target.value)) ?? null;
-              setSelectedPipeline(pipeline);
-              setValidation(null);
-              if (pipeline) onPipelineSelected(pipeline.id);
+              selectPipeline(pipeline ?? null);
             }}>
               {pipelines.map((pipeline) => (
                 <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>

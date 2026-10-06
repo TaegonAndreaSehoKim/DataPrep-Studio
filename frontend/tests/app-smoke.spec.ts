@@ -1073,3 +1073,65 @@ test("adds analysis setup as explicit editable steps before the recipe", async (
   await expect(recipe.nth(2)).toContainText("Numeric Imputation");
   expect(setupRequests).toBe(1);
 });
+
+async function openTwoPipelines(page: Page) {
+  const other = { ...pipeline, id: 402, name: "Second pipeline" };
+  await page.route(`${apiBase}/projects/${project.id}/pipelines`, (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    return route.fulfill({ json: [pipeline, other] });
+  });
+  await page.route(`${apiBase}/pipelines/${other.id}`, (route) => route.fulfill({ json: other }));
+  await page.route(`${apiBase}/pipelines/${other.id}/validate`, (route) => route.fulfill({ json: { valid: true, issues: [] } }));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: project.name }).click();
+  await page.getByRole("navigation").getByRole("button", { name: "Pipeline", exact: true }).click();
+  await expect(page.locator(".pipeline-summary")).toContainText(pipeline.name);
+  return other;
+}
+
+test("ignores validation from a previously selected pipeline in the same workspace", async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let requests = 0;
+  await page.route(`${apiBase}/pipelines/${pipeline.id}/validate`, async (route) => {
+    requests += 1;
+    await gate;
+    await route.fulfill({ json: { valid: false, issues: [{ severity: "error", step_id: null, operation_type: null, message: "Old pipeline validation error" }] } });
+  });
+  const other = await openTwoPipelines(page);
+  await page.getByRole("button", { name: "Validate", exact: true }).click();
+  await expect.poll(() => requests).toBe(1);
+  await page.getByRole("combobox", { name: "Selected pipeline", exact: true }).selectOption(String(other.id));
+  await expect(page.locator(".pipeline-summary")).toContainText(other.name);
+  const oldResponse = page.waitForResponse(`${apiBase}/pipelines/${pipeline.id}/validate`);
+  release();
+  await oldResponse;
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(page.getByText("Old pipeline validation error")).not.toBeVisible();
+  await page.getByRole("button", { name: "Validate", exact: true }).click();
+  await expect(page.getByText("Pipeline is valid", { exact: true })).toBeVisible();
+});
+
+test("keeps the selected pipeline when an older Apply response arrives", async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let requests = 0;
+  await page.route(`${apiBase}/pipelines/${pipeline.id}/apply`, async (route) => {
+    requests += 1;
+    await gate;
+    await route.fulfill({ status: 201, json: pipelineRun });
+  });
+  const other = await openTwoPipelines(page);
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect.poll(() => requests).toBe(1);
+  await page.getByRole("combobox", { name: "Selected pipeline", exact: true }).selectOption(String(other.id));
+  await expect(page.locator(".pipeline-summary")).toContainText(other.name);
+  const oldResponse = page.waitForResponse(`${apiBase}/pipelines/${pipeline.id}/apply`);
+  release();
+  await oldResponse;
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "Pipeline Overview", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Current workspace context")).toContainText(other.name);
+  await expect(page.getByLabel("Current workspace context")).not.toContainText(`Export run #${pipelineRun.id}`);
+});

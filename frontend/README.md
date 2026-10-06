@@ -35,6 +35,7 @@ The Playwright suite covers dashboard/project navigation, workflow progress guid
 - Workflow progress bar for project, upload, analysis, review, pipeline, preview, and export stages.
 - Current workspace context bar for project, loaded data, selected analysis, and selected pipeline.
 - Project changes reset dependent selections and forms. Responses from obsolete workspace/pipeline requests are ignored, and switching pipelines clears the selected export run.
+- Within one project, late validation, edits, and Apply responses remain associated with their original pipeline. A completed older Apply does not switch the current selection or open its exports, and older list responses cannot overwrite freshly edited steps.
 - API errors show the backend detail message. Project loading, pipeline loading, preview, and exports support retry; Apply buttons remain disabled while a request is in progress.
 - The preview page uses charts embedded in the preview response, avoiding a second transformation request for charts.
 - Train/test workflows accept unlabeled test CSVs. Analysis explains unavailable target comparisons; the builder protects the train label from feature steps, and preview displays processing notes.
