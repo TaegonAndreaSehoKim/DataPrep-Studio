@@ -77,8 +77,9 @@ This file tracks the implemented API surface for the local MVP.
 ## Preview and Apply
 
 - `POST /pipelines/{pipeline_id}/preview`
-  - Returns before/after summaries, affected columns, before/after sample rows, column-level diffs, step effects, warnings, and fitted parameter metadata.
+  - Returns before/after summaries, affected columns, before/after sample rows, column-level diffs, step effects, warnings, fitted parameter metadata, and `charts` built from the same result.
 - `POST /pipelines/{pipeline_id}/preview/charts`
+  - Compatibility endpoint for chart-only clients. Prefer the embedded `charts` field when loading a full preview to avoid another pipeline execution.
 - `POST /pipelines/{pipeline_id}/apply`
 
 ## Exports

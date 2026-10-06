@@ -351,6 +351,7 @@ async function mockApi(page: Page) {
       if (createdPipeline?.mode === "train_test") {
         await route.fulfill({
           json: {
+            charts: { analysis_id: currentAnalysis.id, charts: {} },
             before_summary: {
               train: { row_count: 6, column_count: 4, missing_cells: 1 },
               test: { row_count: 3, column_count: 4, missing_cells: 1 }
@@ -390,6 +391,7 @@ async function mockApi(page: Page) {
       await route.fulfill({
         json: {
           before_summary: { row_count: 5, column_count: 4, missing_cells: 1 },
+          charts: { analysis_id: currentAnalysis.id, charts: {} },
           after_summary: { row_count: 5, column_count: 4, missing_cells: 0 },
           affected_columns: ["income"],
           before_sample_rows: [{ age: 41, income: null, city: "Seattle", target: "no" }],
@@ -1001,6 +1003,8 @@ test("ignores dataset responses from a previous workspace", async ({ page }) => 
 
 test("retries a failed preview and shows the readable backend error", async ({ page }) => {
   let failing = true;
+  let chartRequests = 0;
+  page.on("request", (request) => { if (request.url().endsWith("/preview/charts")) chartRequests += 1; });
   await page.route(`${apiBase}/pipelines/${pipeline.id}/preview`, (route) => {
     if (!failing) return route.fallback();
     return route.fulfill({ status: 400, json: { detail: "Temporary preview failure" } });
@@ -1012,6 +1016,7 @@ test("retries a failed preview and shows the readable backend error", async ({ p
   failing = false;
   await page.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Pipeline Preview" })).toBeVisible();
+  expect(chartRequests).toBe(0);
 });
 
 test("recovers from Apply failure and prevents duplicate Apply requests", async ({ page }) => {

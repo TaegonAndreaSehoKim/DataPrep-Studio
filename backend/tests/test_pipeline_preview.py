@@ -56,10 +56,36 @@ def test_pipeline_preview_returns_before_after_and_step_effects(client):
     assert diffs["income"]["after_missing_count"] == 0
     assert diffs["income"]["changed_sample_count"] == 1
     assert diffs["city"]["status"] == "removed"
+    assert body["charts"]["analysis_id"] == analysis["id"]
+    assert set(body["charts"]["charts"]) >= {"shape_change", "missing_rate_change"}
 
     charts = client.post(f"/pipelines/{pipeline['id']}/preview/charts", json={"limit": 2})
     assert charts.status_code == 200
     assert set(charts.json()["charts"]) >= {"shape_change", "missing_rate_change"}
+    assert charts.json() == body["charts"]
+
+
+@pytest.mark.parametrize("mode", ["single", "train_test"])
+def test_preview_returns_charts_without_reexecuting_transformations(client, monkeypatch, mode):
+    from app.services import pipeline_engine
+
+    project_id = client.post("/projects", json={"name": "Preview computation"}).json()["id"]
+    for role in (["single"] if mode == "single" else ["train", "test"]):
+        assert client.post(f"/projects/{project_id}/datasets/upload", data={"role": role}, files={"file": (f"{role}.csv", b"value\n1\n2\n3\n", "text/csv")}).status_code == 201
+    pipeline_id = client.post(f"/projects/{project_id}/pipelines", json={"name": "One pass", "mode": mode}).json()["id"]
+    assert client.post(f"/pipelines/{pipeline_id}/steps", json={"operation_type": "numeric_scaling", "columns": ["value"]}).status_code == 201
+    calls = []
+    original = pipeline_engine.fit_transform_step
+
+    def tracked(*args, **kwargs):
+        calls.append(args[1])
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline_engine, "fit_transform_step", tracked)
+    response = client.post(f"/pipelines/{pipeline_id}/preview")
+    assert response.status_code == 200
+    assert calls == ["numeric_scaling"]
+    assert response.json()["charts"]["charts"]["shape_change"]["data"]
 
 
 def test_pipeline_preview_returns_validation_error(client):

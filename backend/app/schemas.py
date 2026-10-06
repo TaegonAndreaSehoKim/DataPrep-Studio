@@ -304,6 +304,7 @@ class ColumnDiffOut(BaseModel):
 
 
 class PreviewOut(BaseModel):
+    charts: AnalysisChartsOut = Field(default_factory=lambda: AnalysisChartsOut(analysis_id=0, charts={}))
     before_summary: dict[str, object]
     after_summary: dict[str, object]
     affected_columns: list[str]

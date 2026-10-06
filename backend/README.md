@@ -86,6 +86,7 @@ For the real browser integration suite, `scripts/run_browser_test_server.py` run
 - Editable pipeline drafts may contain invalid parameters. Validate, preview, and apply share operation parameter checks for types, finite numbers, range lengths/order, and supported values; execution rejects invalid parameters with readable 400 errors.
 - CSV files are the only supported input format for the MVP.
 - Preprocessing previews operate on copies and do not mutate uploaded source files.
+- Preview responses include charts built from the same transformation result. Clients should use the embedded `charts` field instead of making a second `/preview/charts` call; the separate endpoint remains available for compatibility.
 - In train/test mode, learned preprocessing parameters are fit on train only and applied to test.
 - Missing required test features are rejected. Numeric imputation coerces both splits consistently, rare grouping honors the same missing-value option in both splits, and inferred per-column date formats are learned on train and embedded in config/code. Ambiguous dates default to the format inferred from train; provide an explicit format when needed. Missing/invalid dates retain missing derived values.
 - All-missing train numeric columns need a constant imputation strategy before scaling/clipping. Robust scaling centers on the train median and uses the configured train quantile span.

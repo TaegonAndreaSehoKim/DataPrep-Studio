@@ -17,6 +17,8 @@ async function download(page: Page, label: string, path: string) {
 for (const mode of ["single", "train_test"] as const) {
   test(`real API: ${mode} upload analysis recipe preview apply and replay`, async ({ page }, testInfo) => {
     const pageErrors: string[] = [];
+    let chartRequests = 0;
+    page.on("request", (request) => { if (request.url().endsWith("/preview/charts")) chartRequests += 1; });
     page.on("pageerror", (error) => pageErrors.push(error.message));
     let projectId: number | null = null;
     const inputs: Record<string, string> = mode === "single" ? {
@@ -108,6 +110,7 @@ for (const mode of ["single", "train_test"] as const) {
         expect(replay.status).toBe(0);
       }
       expect(pageErrors).toEqual([]);
+      expect(chartRequests).toBe(0);
     } finally {
       if (projectId !== null) {
         const cleanup = await apiRequest.newContext();

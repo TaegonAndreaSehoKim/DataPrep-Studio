@@ -53,6 +53,11 @@ def _analysis_or_none(db: Session, analysis_id: int | None) -> AnalysisRun | Non
     return db.get(AnalysisRun, analysis_id)
 
 
+def _preview_response(result: dict[str, object], analysis_id: int | None) -> PreviewOut:
+    charts = build_preview_charts(analysis_id or 0, _chart_summary(result["before_summary"]), _chart_summary(result["after_summary"]))
+    return PreviewOut(**result, charts=charts)
+
+
 @router.post("/pipelines/{pipeline_id}/preview", response_model=PreviewOut)
 def preview_pipeline(pipeline_id: int, payload: PreviewRequest | None = None, db: Session = Depends(get_db)) -> PreviewOut:
     pipeline = db.get(Pipeline, pipeline_id)
@@ -72,7 +77,7 @@ def preview_pipeline(pipeline_id: int, payload: PreviewRequest | None = None, db
             if dataset is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pipeline project does not have a single dataset")
             df = read_csv_file(dataset.storage_path)
-            return PreviewOut(**preview_single(df, steps, target_column, problem_type, limit))
+            return _preview_response(preview_single(df, steps, target_column, problem_type, limit), pipeline.analysis_run_id)
 
         train_dataset = db.get(DatasetFile, analysis.train_dataset_file_id) if analysis and analysis.train_dataset_file_id else _latest_dataset(db, pipeline.project_id, "train")
         test_dataset = db.get(DatasetFile, analysis.test_dataset_file_id) if analysis and analysis.test_dataset_file_id else _latest_dataset(db, pipeline.project_id, "test")
@@ -80,7 +85,7 @@ def preview_pipeline(pipeline_id: int, payload: PreviewRequest | None = None, db
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pipeline project must have train and test datasets")
         train_df = read_csv_file(train_dataset.storage_path)
         test_df = read_csv_file(test_dataset.storage_path)
-        return PreviewOut(**preview_train_test(train_df, test_df, steps, target_column, problem_type, limit))
+        return _preview_response(preview_train_test(train_df, test_df, steps, target_column, problem_type, limit), pipeline.analysis_run_id)
     except CsvValidationError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except TransformationError as exc:
@@ -96,9 +101,4 @@ def _chart_summary(summary: dict[str, object]) -> dict[str, object]:
 
 @router.post("/pipelines/{pipeline_id}/preview/charts", response_model=AnalysisChartsOut)
 def preview_pipeline_charts(pipeline_id: int, payload: PreviewRequest | None = None, db: Session = Depends(get_db)) -> AnalysisChartsOut:
-    pipeline = db.get(Pipeline, pipeline_id)
-    if pipeline is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
-    preview = preview_pipeline(pipeline_id, payload, db)
-    analysis_id = pipeline.analysis_run_id or 0
-    return build_preview_charts(analysis_id, _chart_summary(preview.before_summary), _chart_summary(preview.after_summary))
+    return preview_pipeline(pipeline_id, payload, db).charts

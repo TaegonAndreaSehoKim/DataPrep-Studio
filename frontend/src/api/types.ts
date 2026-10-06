@@ -228,6 +228,7 @@ export interface ColumnDiff {
 }
 
 export interface PreviewResult {
+  charts: AnalysisCharts;
   before_summary: Record<string, unknown>;
   after_summary: Record<string, unknown>;
   affected_columns: string[];

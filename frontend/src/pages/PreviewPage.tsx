@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { apiClient } from "../api/client";
-import type { AnalysisCharts as AnalysisChartsData, PreviewResult } from "../api/types";
+import type { PreviewResult } from "../api/types";
 import { AnalysisCharts } from "../components/AnalysisCharts";
 import { BeforeAfterPanel } from "../components/BeforeAfterPanel";
 import { Button } from "../components/Button";
@@ -22,7 +22,6 @@ export function PreviewPage({
   onApplied: (runId: number) => void;
 }) {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const [charts, setCharts] = useState<AnalysisChartsData | null>(null);
   const [loading, setLoading] = useState(Boolean(pipelineId));
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,11 +35,10 @@ export function PreviewPage({
     setLoading(true);
     setError(null);
     let active = true;
-    Promise.all([apiClient.previewPipeline(pipelineId), apiClient.previewPipelineCharts(pipelineId)])
-      .then(([nextPreview, nextCharts]) => {
+    apiClient.previewPipeline(pipelineId)
+      .then((nextPreview) => {
         if (!active) return;
         setPreview(nextPreview);
-        setCharts(nextCharts);
       })
       .catch((err: Error) => { if (active) setError(err.message); })
       .finally(() => { if (active) setLoading(false); });
@@ -89,7 +87,7 @@ export function PreviewPage({
         </div>
         <BeforeAfterPanel before={preview.before_summary} after={preview.after_summary} />
       </Card>
-      <AnalysisCharts charts={charts} />
+      <AnalysisCharts charts={preview.charts} />
       <Card title="Column Changes">
         {preview.column_diffs.length ? (
           <div className="preview-table-wrap no-margin">
