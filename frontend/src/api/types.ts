@@ -50,12 +50,21 @@ export interface DatasetSetupSuggestion {
   notes: string[];
 }
 
+export interface AnalysisOptions {
+  dataset_config_id: number | null;
+  mode: "single" | "train_test";
+  column_type_overrides: Record<string, ColumnType>;
+  missing_value_tokens: string[];
+  ignored_columns: string[];
+}
+
 export interface AnalysisRun {
   id: number;
   project_id: number;
   target_column: string | null;
   problem_type: "classification" | "regression" | "unknown";
   readiness_score: number;
+  options: AnalysisOptions | null;
   score_breakdown: Record<string, number | string>;
   status: "completed" | "error";
   created_at: string;

@@ -6,6 +6,7 @@ import pandas as pd
 from pandas._libs.tslibs.parsing import guess_datetime_format
 
 from app.services.operation_registry import OPERATIONS_ALLOW_EMPTY_COLUMNS, validate_operation_params
+from app.services.dataframe_cleaning import replace_placeholders
 
 
 @dataclass
@@ -94,14 +95,15 @@ def fit_transform_step(df: pd.DataFrame, operation_type: str, columns: list[str]
     if operation_type == "replace_placeholder_values":
         placeholders = params.get("placeholders", ["N/A", "NA", "unknown", "?", "-"])
         replacement = params.get("replacement", None)
+        strip_whitespace = params.get("strip_whitespace", False)
         if not isinstance(placeholders, list):
             raise TransformationError("placeholders must be a list")
         count = 0
         for column in columns:
             before = working[column].copy()
-            working[column] = working[column].replace(placeholders, replacement)
+            working[column] = replace_placeholders(working[column], placeholders, replacement, strip_whitespace)
             count += int((before != working[column]).sum())
-        return working, {"placeholders": placeholders, "replacement": replacement}, StepEffect(operation_type, columns, f"Replaced {count} placeholder values.")
+        return working, {"placeholders": placeholders, "replacement": replacement, "strip_whitespace": strip_whitespace}, StepEffect(operation_type, columns, f"Replaced {count} placeholder values.")
 
     if operation_type == "numeric_imputation":
         before_missing = _missing_counts(working, columns)
@@ -376,7 +378,7 @@ def transform_step(df: pd.DataFrame, operation_type: str, columns: list[str], fi
 
     if operation_type == "replace_placeholder_values":
         for column in columns:
-            working[column] = working[column].replace(fitted_params["placeholders"], fitted_params.get("replacement"))
+            working[column] = replace_placeholders(working[column], fitted_params["placeholders"], fitted_params.get("replacement"), fitted_params.get("strip_whitespace", False))
         return working, StepEffect(operation_type, columns, "Replaced placeholder values.")
 
     if operation_type in {"numeric_imputation", "categorical_imputation"}:

@@ -40,6 +40,7 @@ The Playwright suite covers dashboard/project navigation, workflow progress guid
 - Inline printable analysis report viewer with markdown download.
 - Recommendation cards with explicit pipeline action labels.
 - Pipeline recipe summary showing what enabled steps will do before preview or apply.
+- Analysis results expose the saved run settings. The pipeline's **Add Analysis Setup Steps** button adds visible, editable missing-token and ignored-column steps before the existing recipe; setup hints do not silently alter exports.
 
 ## API Base URL
 

@@ -26,6 +26,7 @@ def _analysis_to_out(analysis: AnalysisRun) -> AnalysisRunOut:
         problem_type=analysis.problem_type,  # type: ignore[arg-type]
         readiness_score=analysis.readiness_score,
         score_breakdown=_json_loads(analysis.score_breakdown_json, {}),
+        options=_json_loads(analysis.options_json, None),
         status=analysis.status,  # type: ignore[arg-type]
         created_at=analysis.created_at,
     )

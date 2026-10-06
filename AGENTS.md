@@ -101,6 +101,7 @@ When implementation and this guide disagree, prefer the explicit product require
 
 2. Keep preprocessing reproducible.
    Every applied pipeline should be representable as config, report, and generated code.
+   Analysis options are immutable per-run snapshots. Carry missing tokens and ignored columns into exports only through explicit, editable pipeline steps; type overrides are profiling hints. Preserve legacy SQLite data when adding persisted fields.
 
 3. Treat leakage safety as a core requirement.
    In train/test mode, all learned preprocessing statistics must be fit on train only and then applied to test.

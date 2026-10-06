@@ -90,6 +90,25 @@ export function PipelineBuilderPage({
     return grouped;
   }, [validation]);
   const sourcedSteps = useMemo(() => selectedPipeline?.steps.filter((step) => stepSource(step)) ?? [], [selectedPipeline]);
+  const analysisOptions = analyses.find((item) => item.id === selectedPipeline?.analysis_run_id)?.options;
+  const setupAlreadyAdded = Boolean(selectedPipeline?.steps.some((step) => stepSource(step)?.type === "analysis_setup"));
+
+  async function addAnalysisSetup() {
+    if (!selectedPipeline || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await apiClient.addAnalysisSetup(selectedPipeline.id);
+      setSelectedPipeline(updated);
+      setPipelines((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setValidation(null);
+      setDraftNotice("Analysis setup added as editable steps before the existing recipe.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add analysis setup");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const availableColumns = useMemo(() => {
     const preferredRole = mode === "train_test" ? "train" : "single";
@@ -441,6 +460,16 @@ export function PipelineBuilderPage({
             </div>
 
             <div className="pipeline-recipe">
+              {analysisOptions && (analysisOptions.missing_value_tokens.length > 0 || analysisOptions.ignored_columns.length > 0) ? (
+                <div className="suggestion-box">
+                  <strong>Analysis Setup</strong>
+                  <span>Missing tokens: {analysisOptions.missing_value_tokens.join(", ") || "none"}. Ignored columns: {analysisOptions.ignored_columns.join(", ") || "none"}.</span>
+                  <small>Add explicit steps to use these settings in exports. Type overrides guide analysis and do not cast data.</small>
+                  <Button variant="secondary" disabled={saving || setupAlreadyAdded} onClick={addAnalysisSetup}>
+                    {setupAlreadyAdded ? "Analysis Setup Steps Added" : "Add Analysis Setup Steps"}
+                  </Button>
+                </div>
+              ) : null}
               <div>
                 <span className="field-label">This Pipeline Will</span>
                 <strong>
@@ -530,7 +559,7 @@ export function PipelineBuilderPage({
                 <div className="suggestion-box" key={step.id}>
                   <strong>{source?.title || step.operation_type}</strong>
                   <span>
-                    {source?.type === "issue" ? "Issue suggestion" : "Analysis recommendation"} / {step.operation_type} / {step.columns.length ? step.columns.join(", ") : "all rows"}
+                    {source?.type === "issue" ? "Issue suggestion" : source?.type === "analysis_setup" ? "Analysis setup" : "Analysis recommendation"} / {step.operation_type} / {step.columns.length ? step.columns.join(", ") : "all rows"}
                   </span>
                   {source?.reason ? <small>{source.reason}</small> : null}
                 </div>

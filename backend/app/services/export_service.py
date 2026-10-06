@@ -27,6 +27,7 @@ def write_pipeline_exports(
     single_df: pd.DataFrame | None = None,
     train_df: pd.DataFrame | None = None,
     test_df: pd.DataFrame | None = None,
+    analysis_options: dict[str, object] | None = None,
 ) -> dict[str, str]:
     settings = get_settings()
     export_dir = Path(settings.export_dir) / f"project_{project_id}" / f"pipeline_run_{pipeline_run_id}"
@@ -63,6 +64,7 @@ def write_pipeline_exports(
         "mode": mode,
         "target_column": target_column,
         "problem_type": problem_type,
+        "analysis_options": analysis_options,
         "steps": fitted_params,
         "input_file_names": input_file_names,
         "output_file_names": output_file_names,

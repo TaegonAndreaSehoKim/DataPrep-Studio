@@ -28,6 +28,10 @@ def generate_report(config: dict[str, object], before_summary: dict[str, object]
         f"- Target column: {config.get('target_column') or 'not specified'}",
         f"- Problem type: {config.get('problem_type')}",
         "",
+        "## Analysis Setup Snapshot",
+        f"```json\n{_json_block(config.get('analysis_options'))}\n```",
+        "Analysis options describe profiling. Only the enabled pipeline steps below change the exported data.",
+        "",
         "## Pipeline Steps",
     ]
     for step in config.get("steps", []):

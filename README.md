@@ -139,6 +139,7 @@ The app runs locally for development and is also available as a public AWS EC2 d
 8. Create a preprocessing pipeline.
 9. Add and configure transformation steps, or add suggested steps from recommendations and issues.
 10. Review the pipeline recipe summary.
+    Use **Add Analysis Setup Steps** to explicitly carry missing tokens and ignored columns from the immutable analysis snapshot into the recipe. Type overrides guide profiling and do not cast exported values.
 11. Validate and preview before/after effects.
 12. Apply the pipeline.
 13. Download cleaned data, config, report, and generated code.

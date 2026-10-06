@@ -120,6 +120,14 @@ class AnalysisRunCreate(BaseModel):
     ignored_columns: list[str] = Field(default_factory=list)
 
 
+class AnalysisOptions(BaseModel):
+    dataset_config_id: int | None = None
+    mode: ProjectMode = "single"
+    column_type_overrides: dict[str, ColumnType] = Field(default_factory=dict)
+    missing_value_tokens: list[str] = Field(default_factory=list)
+    ignored_columns: list[str] = Field(default_factory=list)
+
+
 class AnalysisRunOut(BaseModel):
     id: int
     project_id: int
@@ -127,6 +135,7 @@ class AnalysisRunOut(BaseModel):
     problem_type: ProblemType
     readiness_score: float
     score_breakdown: dict[str, float | int | str]
+    options: AnalysisOptions | None = None
     status: Literal["completed", "error"]
     created_at: datetime
 

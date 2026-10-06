@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
@@ -34,6 +34,17 @@ def initialize_database() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=get_engine())
+    migrate_database(get_engine())
+
+
+def migrate_database(engine) -> None:
+    """Add the immutable snapshot field without changing existing local data."""
+    if engine.dialect.name != "sqlite":
+        return
+    columns = {column["name"] for column in inspect(engine).get_columns("analysis_runs")}
+    if "options_json" not in columns:
+        with engine.begin() as connection:
+            connection.exec_driver_sql("ALTER TABLE analysis_runs ADD COLUMN options_json TEXT NOT NULL DEFAULT 'null'")
 
 
 def reset_database_engine() -> None:

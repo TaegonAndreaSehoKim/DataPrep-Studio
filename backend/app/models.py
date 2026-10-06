@@ -73,6 +73,7 @@ class AnalysisRun(Base):
     problem_type: Mapped[str] = mapped_column(String(30), nullable=False, default="unknown")
     readiness_score: Mapped[float] = mapped_column(Float, nullable=False, default=100.0)
     score_breakdown_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    options_json: Mapped[str] = mapped_column(Text, nullable=False, default="null")
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="completed")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 

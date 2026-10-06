@@ -561,6 +561,13 @@ export function AnalysisPage({
       </Card>
 
       <Card title="Analysis Results">
+        {overview?.analysis_run.options ? (
+          <details>
+            <summary>Settings used for this analysis</summary>
+            <pre>{JSON.stringify(overview.analysis_run.options, null, 2)}</pre>
+            <small>These settings are saved with the run. Add Analysis Setup Steps in the pipeline to normalize missing tokens and drop ignored columns in exports.</small>
+          </details>
+        ) : null}
         {overview ? (
           <div className="page-stack">
             <div className="analysis-overview-grid">

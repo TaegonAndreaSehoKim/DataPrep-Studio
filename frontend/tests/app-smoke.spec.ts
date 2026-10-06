@@ -17,6 +17,7 @@ const analysis = {
   problem_type: "classification",
   readiness_score: 91.5,
   score_breakdown: {},
+  options: null,
   status: "completed",
   created_at: "2026-05-17T00:00:00Z"
 };
@@ -463,6 +464,13 @@ async function mockApi(page: Page) {
             operation_type: "drop_columns",
             label: "Drop Columns",
             description: "Remove selected columns.",
+            supported_column_types: ["any"],
+            params: []
+          },
+          {
+            operation_type: "replace_placeholder_values",
+            label: "Replace Placeholder Values",
+            description: "Replace selected placeholder strings.",
             supported_column_types: ["any"],
             params: []
           }
@@ -1030,4 +1038,33 @@ test("recovers from Apply failure and prevents duplicate Apply requests", async 
   release();
   await expect(page.getByRole("heading", { name: `Downloads for Run #${pipelineRun.id}` })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("adds analysis setup as explicit editable steps before the recipe", async ({ page }) => {
+  const options = { dataset_config_id: null, mode: "single", missing_value_tokens: ["?"], ignored_columns: ["city"], column_type_overrides: { income: "numeric" } };
+  await page.route(`${apiBase}/projects/${project.id}/analysis`, (route) => route.fulfill({ json: [{ ...analysis, options }] }));
+  let setupRequests = 0;
+  await page.route(`${apiBase}/pipelines/${pipeline.id}/analysis-setup`, async (route) => {
+    setupRequests += 1;
+    await route.fulfill({ json: {
+      ...pipeline,
+      steps: [
+        { id: 611, pipeline_id: pipeline.id, order_index: 0, enabled: true, operation_type: "drop_columns", columns: ["city"], params: { __dataprep_source: { type: "analysis_setup", title: "Analysis setup" } } },
+        { id: 612, pipeline_id: pipeline.id, order_index: 1, enabled: true, operation_type: "replace_placeholder_values", columns: ["income"], params: { placeholders: ["?"], replacement: null, strip_whitespace: true, __dataprep_source: { type: "analysis_setup", title: "Analysis setup" } } },
+        { id: 613, pipeline_id: pipeline.id, order_index: 2, enabled: true, operation_type: "numeric_imputation", columns: ["income"], params: { strategy: "median" } }
+      ]
+    } });
+  });
+  await openRecommendedPipeline(page);
+  const add = page.getByRole("button", { name: "Add Analysis Setup Steps", exact: true });
+  await expect(add).toBeVisible();
+  expect(setupRequests).toBe(0);
+  await add.click();
+  await expect(page.getByRole("button", { name: "Analysis Setup Steps Added", exact: true })).toBeDisabled();
+  const recipe = page.locator(".pipeline-recipe li");
+  await expect(recipe).toHaveCount(3);
+  await expect(recipe.nth(0)).toContainText("Drop Columns");
+  await expect(recipe.nth(1)).toContainText("Replace Placeholder Values");
+  await expect(recipe.nth(2)).toContainText("Numeric Imputation");
+  expect(setupRequests).toBe(1);
 });

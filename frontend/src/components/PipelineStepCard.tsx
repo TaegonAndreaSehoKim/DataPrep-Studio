@@ -25,7 +25,7 @@ function sourceLabel(source: PipelineStepSource | null) {
   if (!source) {
     return "Manual";
   }
-  return source.type === "issue" ? "From Issue" : "Recommended";
+  return source.type === "issue" ? "From Issue" : source.type === "analysis_setup" ? "Analysis Setup" : "Recommended";
 }
 
 export function validationFix(issue: PipelineValidationIssue) {

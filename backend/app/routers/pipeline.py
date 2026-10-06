@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.deps import get_db
 from app.models import AnalysisRun, ColumnProfile, DatasetFile, Issue, Pipeline, PipelineRun, PipelineStep, Project, utc_now
 from app.schemas import (
+    AnalysisOptions,
     OperationMetadata,
     PipelineConfigImportCreate,
     PipelineCreate,
@@ -23,6 +24,7 @@ from app.schemas import (
     SuggestedPipelineStepOut,
 )
 from app.services.csv_loader import CsvValidationError, read_csv_file
+from app.services.analysis_setup import build_analysis_setup_steps
 from app.services.export_service import write_pipeline_exports
 from app.services.operation_registry import (
     OPERATIONS_ALLOW_EMPTY_COLUMNS,
@@ -539,6 +541,41 @@ def get_pipeline(pipeline_id: int, db: Session = Depends(get_db)) -> PipelineOut
     return _pipeline_to_out(_get_pipeline_or_404(pipeline_id, db))
 
 
+@router.post("/pipelines/{pipeline_id}/analysis-setup", response_model=PipelineOut)
+def add_analysis_setup(pipeline_id: int, db: Session = Depends(get_db)) -> PipelineOut:
+    pipeline = _get_pipeline_or_404(pipeline_id, db)
+    analysis = db.get(AnalysisRun, pipeline.analysis_run_id) if pipeline.analysis_run_id else None
+    if analysis is None or _json_loads(analysis.options_json, None) is None:
+        raise HTTPException(status_code=400, detail="Linked analysis has no saved setup snapshot; run analysis again")
+    options = AnalysisOptions.model_validate_json(analysis.options_json)
+    if options.mode != pipeline.mode:
+        raise HTTPException(status_code=400, detail="Pipeline mode must match the linked analysis setup")
+    steps = sorted(pipeline.steps, key=lambda step: step.order_index)
+    for step in steps:
+        source = _json_loads(step.params_json, {}).get("__dataprep_source")
+        if isinstance(source, dict) and source.get("type") == "analysis_setup":
+            return _pipeline_to_out(pipeline, steps)
+    ids = [analysis.single_dataset_file_id] if pipeline.mode == "single" else [analysis.train_dataset_file_id, analysis.test_dataset_file_id]
+    datasets = [db.get(DatasetFile, dataset_id) if dataset_id else None for dataset_id in ids]
+    if any(dataset is None for dataset in datasets):
+        raise HTTPException(status_code=400, detail="Analysis source dataset is missing")
+    try:
+        drafts = build_analysis_setup_steps(options, [read_csv_file(dataset.storage_path) for dataset in datasets])
+    except (CsvValidationError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    for index, step in enumerate(steps, start=len(drafts)):
+        step.order_index = index
+    prepended = []
+    for index, draft in enumerate(drafts):
+        step = PipelineStep(pipeline_id=pipeline.id, order_index=index, enabled=True,
+                            operation_type=draft.operation_type, columns_json=json.dumps(draft.columns), params_json=json.dumps(draft.params))
+        db.add(step)
+        prepended.append(step)
+    pipeline.updated_at = utc_now()
+    db.commit()
+    return _pipeline_to_out(pipeline, prepended + steps)
+
+
 @router.delete("/pipelines/{pipeline_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_pipeline(pipeline_id: int, db: Session = Depends(get_db)) -> None:
     pipeline = _get_pipeline_or_404(pipeline_id, db)
@@ -553,6 +590,11 @@ def validate_pipeline(pipeline_id: int, db: Session = Depends(get_db)) -> Pipeli
     metadata_by_type = {metadata.operation_type: metadata for metadata in operation_metadata()}
     profiles_by_name = _column_profiles_by_name(db, pipeline.analysis_run_id)
     current_column_types = {column_name: profile.inferred_type for column_name, profile in profiles_by_name.items()}
+    analysis = db.get(AnalysisRun, pipeline.analysis_run_id) if pipeline.analysis_run_id else None
+    source_id = (analysis.single_dataset_file_id if pipeline.mode == "single" else analysis.train_dataset_file_id) if analysis else None
+    dataset = db.get(DatasetFile, source_id) if source_id else _latest_dataset(db, pipeline.project_id, "single" if pipeline.mode == "single" else "train")
+    if dataset:
+        current_column_types = {**{column: "unknown" for column in _json_loads(dataset.columns_json, [])}, **current_column_types}
 
     issues: list[PipelineValidationIssue] = []
     if not steps:
@@ -740,6 +782,7 @@ def apply_pipeline(pipeline_id: int, payload: PreviewRequest | None = None, db: 
                 fitted_params=result.fitted_params or [],
                 warnings=result.warnings or [],
                 single_df=result.single_df,
+                analysis_options=_json_loads(analysis.options_json, None) if analysis else None,
             )
         else:
             train_dataset = db.get(DatasetFile, analysis.train_dataset_file_id) if analysis and analysis.train_dataset_file_id else _latest_dataset(db, pipeline.project_id, "train")
@@ -780,6 +823,7 @@ def apply_pipeline(pipeline_id: int, payload: PreviewRequest | None = None, db: 
                 warnings=(result.warnings or []) + ["Train/test mode fit preprocessing parameters on train only."],
                 train_df=result.train_df,
                 test_df=result.test_df,
+                analysis_options=_json_loads(analysis.options_json, None) if analysis else None,
             )
     except CsvValidationError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

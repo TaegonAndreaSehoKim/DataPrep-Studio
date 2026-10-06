@@ -163,6 +163,7 @@ export const apiClient = {
       body: JSON.stringify(payload)
     }),
   getPipeline: (pipelineId: number) => request<Pipeline>(`/pipelines/${pipelineId}`),
+  addAnalysisSetup: (pipelineId: number) => request<Pipeline>(`/pipelines/${pipelineId}/analysis-setup`, { method: "POST" }),
   validatePipeline: (pipelineId: number) =>
     request<PipelineValidation>(`/pipelines/${pipelineId}/validate`, {
       method: "POST",

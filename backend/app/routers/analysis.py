@@ -18,6 +18,7 @@ from app.schemas import (
     ReadinessScoreOut,
 )
 from app.services.csv_loader import CsvValidationError, read_csv_file
+from app.services.dataframe_cleaning import replace_placeholders
 from app.services.chart_builder import build_analysis_charts, build_column_charts
 from app.services.analysis_report_generator import generate_analysis_report
 from app.services.drift_detector import detect_train_test_drift
@@ -44,6 +45,7 @@ def _analysis_to_out(analysis: AnalysisRun) -> AnalysisRunOut:
         problem_type=analysis.problem_type,  # type: ignore[arg-type]
         readiness_score=analysis.readiness_score,
         score_breakdown=_json_loads(analysis.score_breakdown_json, {}),
+        options=_json_loads(analysis.options_json, None),
         status=analysis.status,  # type: ignore[arg-type]
         created_at=analysis.created_at,
     )
@@ -176,8 +178,7 @@ def _apply_missing_value_tokens(dataframe, tokens: list[str]):
         return cleaned
     object_columns = cleaned.select_dtypes(include=["object", "string"]).columns
     for column in object_columns:
-        stripped = cleaned[column].astype(str).str.strip()
-        cleaned.loc[stripped.isin(normalized_tokens), column] = None
+        cleaned[column] = replace_placeholders(cleaned[column], list(normalized_tokens), None, strip_whitespace=True)
     return cleaned
 
 
@@ -203,6 +204,13 @@ def run_analysis(project_id: int, payload: AnalysisRunCreate, db: Session = Depe
         ignored_columns = []
     if target_column and target_column in ignored_columns:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Target column cannot be ignored")
+    snapshot = {
+        "dataset_config_id": payload.dataset_config_id,
+        "mode": mode,
+        "column_type_overrides": column_type_overrides,
+        "missing_value_tokens": list(dict.fromkeys(str(token).strip() for token in missing_value_tokens if str(token).strip())),
+        "ignored_columns": list(dict.fromkeys(ignored_columns)),
+    }
 
     if mode == "single":
         dataset = _single_dataset_for_options(db, project_id, options["dataset_config"] if isinstance(options["dataset_config"], DatasetConfig) else None)
@@ -236,6 +244,7 @@ def run_analysis(project_id: int, payload: AnalysisRunCreate, db: Session = Depe
             problem_type=problem_type,
             readiness_score=score,
             score_breakdown_json=json.dumps(breakdown),
+            options_json=json.dumps(snapshot),
             status="completed",
         )
         db.add(analysis)
@@ -293,6 +302,7 @@ def run_analysis(project_id: int, payload: AnalysisRunCreate, db: Session = Depe
         problem_type=problem_type,
         readiness_score=score,
         score_breakdown_json=json.dumps(breakdown),
+        options_json=json.dumps(snapshot),
         status="completed",
     )
     db.add(analysis)

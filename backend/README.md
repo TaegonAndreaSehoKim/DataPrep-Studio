@@ -79,6 +79,8 @@ Storage contents and local SQLite database files should stay out of git.
 ## Design Notes
 
 - The backend is local-first and deterministic.
+- Analysis runs keep an immutable `options` snapshot even after saved setups are edited or deleted. Startup adds the snapshot column to existing SQLite databases; legacy runs return `options: null` rather than inventing historical settings.
+- `POST /pipelines/{id}/analysis-setup` explicitly prepends editable ignored-column and trimmed placeholder steps from the linked snapshot. Repeated requests do not duplicate them. Type overrides remain profiling hints. Config/report/code record analysis context, while only enabled steps mutate exported data.
 - Editable pipeline drafts may contain invalid parameters. Validate, preview, and apply share operation parameter checks for types, finite numbers, range lengths/order, and supported values; execution rejects invalid parameters with readable 400 errors.
 - CSV files are the only supported input format for the MVP.
 - Preprocessing previews operate on copies and do not mutate uploaded source files.

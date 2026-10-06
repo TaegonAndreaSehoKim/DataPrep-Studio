@@ -39,6 +39,7 @@ This file tracks the implemented API surface for the local MVP.
 
 - `POST /projects/{project_id}/analysis/run`
 - `GET /analysis/{analysis_id}`
+  - Analysis responses include an immutable `options` snapshot (mode, saved setup ID, type overrides, missing tokens, ignored columns). Legacy runs without a snapshot return `null`.
 - `GET /analysis/{analysis_id}/overview`
 - `GET /analysis/{analysis_id}/columns`
 - `GET /analysis/{analysis_id}/columns/{column_name}`
@@ -60,6 +61,8 @@ This file tracks the implemented API surface for the local MVP.
 - `GET /projects/{project_id}/pipelines`
 - `GET /pipelines/{pipeline_id}`
 - `DELETE /pipelines/{pipeline_id}`
+- `POST /pipelines/{pipeline_id}/analysis-setup`
+  - Explicitly prepends editable normalization/drop steps from the linked analysis snapshot. Existing setup steps prevent duplicate additions. It does not apply profiling type overrides as casts.
 - `POST /pipelines/{pipeline_id}/steps`
 - `PATCH /pipelines/{pipeline_id}/steps/{step_id}`
 - `DELETE /pipelines/{pipeline_id}/steps/{step_id}`
