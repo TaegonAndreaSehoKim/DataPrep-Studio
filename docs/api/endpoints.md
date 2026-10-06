@@ -49,6 +49,7 @@ This file tracks the implemented API surface for the local MVP.
 - `GET /analysis/{analysis_id}/charts`
 - `GET /analysis/{analysis_id}/score`
 - `GET /analysis/{analysis_id}/train-test-comparison`
+  - Numeric feature summaries include mean/spread/distribution component flags, standard deviations, sample counts, and empirical CDF distance. Categorical summaries include total variation and proportion shift flags alongside unseen categories. Regression target comparisons use numeric metrics.
 - `GET /analysis/{analysis_id}/download/report`
   - Returns a markdown report with dataset context, readiness score, issue summaries, column profiles, preprocessing recommendations, chart data, and train/test drift details when available.
 

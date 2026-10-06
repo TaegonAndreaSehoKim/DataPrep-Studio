@@ -290,7 +290,7 @@ def run_analysis(project_id: int, payload: AnalysisRunCreate, db: Session = Depe
         column_type_overrides,
     )
     issues = detect_issues(train_df, train_profiles, target_column, problem_type)
-    drift = detect_train_test_drift(train_df, test_df, train_profiles, target_column)
+    drift = detect_train_test_drift(train_df, test_df, train_profiles, target_column, problem_type)
     issues.extend(drift.issues)
     score, breakdown = calculate_readiness_score(issues, get_settings().default_readiness_score)
 

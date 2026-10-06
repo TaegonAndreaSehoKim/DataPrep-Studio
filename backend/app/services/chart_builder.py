@@ -88,14 +88,18 @@ def build_analysis_charts(
         if isinstance(columns, dict):
             for column_name, column_summary in columns.items():
                 if isinstance(column_summary, dict):
-                    if "standardized_mean_diff" in column_summary:
+                    if "distribution_distance" in column_summary:
+                        drift_rows.append({"label": str(column_name), "value": round(float(column_summary["distribution_distance"]) * 100, 4)})
+                    elif "total_variation_distance" in column_summary:
+                        drift_rows.append({"label": str(column_name), "value": round(float(column_summary["total_variation_distance"]) * 100, 4)})
+                    elif "standardized_mean_diff" in column_summary:
                         drift_rows.append({"label": str(column_name), "value": round(float(column_summary["standardized_mean_diff"]), 4)})
                     elif "unseen_row_rate" in column_summary:
                         drift_rows.append({"label": str(column_name), "value": round(float(column_summary["unseen_row_rate"]), 4)})
         charts["train_test_drift"] = ChartData(
             chart_type="bar",
             title="Train/Test Drift Summary",
-            description="Numeric mean shift or unseen category rate by feature, plus the overall drift score.",
+            description="Feature values show numeric empirical CDF distance or categorical total variation distance as percentages. The overall score is an advisory heuristic; review raw component metrics for mean and spread shifts. Legacy comparisons show mean shift or unseen rate.",
             data=drift_rows,
         )
 

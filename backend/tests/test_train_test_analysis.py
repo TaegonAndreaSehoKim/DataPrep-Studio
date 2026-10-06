@@ -54,3 +54,17 @@ def test_train_test_analysis_requires_pair(client):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Project must have train and test dataset uploads"
+
+
+def test_distribution_drift_metrics_persist_and_appear_in_charts(client):
+    project_id = client.post("/projects", json={"name": "Distribution drift"}).json()["id"]
+    for role, scale in [("train", 1), ("test", 10)]:
+        csv = "value,target\n" + "".join(f"{value * scale},{index % 2}\n" for index, value in enumerate([-1, 1] * 20))
+        assert client.post(f"/projects/{project_id}/datasets/upload", data={"role": role}, files={"file": (f"{role}.csv", csv.encode(), "text/csv")}).status_code == 201
+    response = client.post(f"/projects/{project_id}/analysis/run", json={"mode": "train_test", "target_column": "target", "problem_type": "classification", "column_type_overrides": {"value": "numeric"}})
+    assert response.status_code == 201
+    analysis_id = response.json()["id"]
+    comparison = client.get(f"/analysis/{analysis_id}/train-test-comparison").json()
+    assert comparison["summary"]["columns"]["value"]["variance_shift_flag"]
+    chart = client.get(f"/analysis/{analysis_id}/charts").json()["charts"]["train_test_drift"]
+    assert next(row["value"] for row in chart["data"] if row["label"] == "value") == 50
