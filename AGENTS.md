@@ -32,6 +32,7 @@ The current MVP is a local full-stack app with:
 - workflow progress, workspace context, printable analysis report, recommendation action cards, and pipeline recipe UX
 
 This is local MVP software intended for demos, portfolio discussion, and future iteration. Do not optimize prematurely for production deployment, multi-user collaboration, or cloud storage.
+The repository includes an optional single-host EC2 portfolio demo setup. It retains local SQLite/filesystem persistence and does not change the MVP's production or multi-user non-goals. Local validation must not depend on that demo host.
 
 ## Current Development Stage
 
@@ -86,6 +87,9 @@ Use these files first when reasoning about requirements and behavior:
 - `backend/app/services/transformations.py`
 - `backend/app/services/pipeline_preview.py`
 - `backend/app/services/export_service.py`
+- `backend/app/services/code_generator.py`
+- `backend/app/services/operation_registry.py`
+- `backend/app/services/analysis_setup.py`
 - `frontend/src/api/client.ts`
 - `frontend/src/api/types.ts`
 
@@ -263,6 +267,16 @@ Run frontend build before closing frontend or full-stack changes:
 cd frontend
 npm run build
 ```
+
+Validate browser workflow changes with mocked recovery tests and real API integration tests:
+
+```powershell
+cd frontend
+npm run test:e2e
+npm run test:integration
+```
+
+The integration suite requires installed backend dependencies and Playwright Chromium, and free loopback ports 8001/5174. It uses disposable persistence; do not substitute the user's development database. See `frontend/README.md` for Python executable selection.
 
 Run the frontend locally:
 

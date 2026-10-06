@@ -37,6 +37,7 @@ POST /projects/{project_id}/pipelines
 POST /projects/{project_id}/pipelines/from-analysis/{analysis_id}
 POST /projects/{project_id}/pipelines/from-config
 POST /pipelines/{pipeline_id}/steps
+POST /pipelines/{pipeline_id}/analysis-setup
 POST /pipelines/{pipeline_id}/validate
 POST /pipelines/{pipeline_id}/steps/from-issue/{issue_id}
 POST /pipelines/{pipeline_id}/preview
@@ -87,9 +88,11 @@ npm run build
 ```powershell
 cd frontend
 npm run test:e2e
+npm run test:integration
 ```
 
 The Playwright tests run against the Vite dev server with mocked backend responses for the core browser workflow: project navigation, workflow progress guidance, workspace context, CSV upload, upload error and blocked-state display, analysis run, inline report display, recommendation cards, issue suggestions, column charts, recommendation-to-pipeline, train/test analysis and export flow, pipeline recipe summary, operation parameter help, preview, apply, and export navigation.
+The separate integration suite launches FastAPI with temporary SQLite/storage on port 8001 and Vite on port 5174. It covers single, labeled train/test, and unlabeled test workflows and compares downloaded Python-code results with cleaned CSV downloads. Both ports must be free. The Python executable is selected from `backend/.venv`, the repository `.venv`, or `python`; override with `DATAPREP_TEST_PYTHON` when needed.
 
 ## Demo Walkthrough
 

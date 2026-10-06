@@ -83,7 +83,7 @@ npm run dev
 14. Apply the pipeline.
 15. Download export artifacts.
 
-The default browser suite mocks API responses and checks UI recovery paths. The integration suite starts a real FastAPI server with temporary persistence on `127.0.0.1:8001`, and Vite on `127.0.0.1:5174`; both ports must be free. It performs the workflow in single and train/test modes and executes downloaded Python code to compare against cleaned CSV downloads. Install backend requirements first; optionally set `DATAPREP_TEST_PYTHON` to the Python executable used for that environment.
+The default browser suite mocks API responses and checks UI recovery paths. The integration suite starts a real FastAPI server with temporary persistence on `127.0.0.1:8001`, and Vite on `127.0.0.1:5174`; both ports must be free. It performs single, labeled train/test, and unlabeled test workflows and executes downloaded Python code to compare against cleaned CSV downloads. Install backend requirements first; optionally set `DATAPREP_TEST_PYTHON` to the Python executable used for that environment. These checks do not contact the optional EC2 portfolio demo.
 
 ## Test Isolation
 

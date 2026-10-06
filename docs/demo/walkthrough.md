@@ -30,6 +30,7 @@ Use a CSV with a mix of numeric and categorical columns, a target column, and at
 6. Show the readiness score, issue counts, recommendation cards, charts, column profiles, and printable analysis report.
 7. Add one recommendation to the pipeline, or create a suggested pipeline draft.
 8. Review the pipeline recipe summary and operation parameter help.
+   If the analysis used missing tokens or ignored columns, choose **Add Analysis Setup Steps** and show the editable steps added at the start of the recipe.
 9. Validate the pipeline.
 10. Preview before/after summaries, column diffs, and sample rows.
 11. Apply the pipeline.
@@ -42,6 +43,7 @@ Use a CSV with a mix of numeric and categorical columns, a target column, and at
 - Train/test preprocessing fits learned values on train only, then applies them to test.
 - Uploaded source files are immutable; previews use copies and applied pipelines create new export artifacts.
 - Exported config, report, and generated code make preprocessing decisions reproducible.
+- Analysis settings stay attached to the run even when saved setups change. Config import creates a recipe to refit, while downloaded code replays that export's fitted values.
 
 ## Train/Test Variant
 
@@ -55,6 +57,7 @@ Use this when showing leakage safety:
 6. Add an operation with learned parameters, such as numeric imputation or scaling.
 7. Preview and apply the pipeline.
 8. Confirm exports include `Clean Train` and `Clean Test` rather than one combined cleaned CSV.
+   A test CSV may omit the target. Show the unavailable target comparison and confirm that cleaned train retains its labels while cleaned test contains only features.
 
 ## Validation Before Demo
 

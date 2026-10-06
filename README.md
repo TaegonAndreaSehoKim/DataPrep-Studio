@@ -4,7 +4,7 @@ DataPrep Studio is a full-stack data preparation workbench for tabular machine l
 
 It helps users upload CSV datasets, inspect data quality and ML-readiness issues, build preprocessing pipelines step by step, preview before/after effects, and export reproducible cleaned datasets, configs, reports, and pandas-style preprocessing code.
 
-Live demo: http://ec2-3-149-249-121.us-east-2.compute.amazonaws.com/
+Portfolio demo URL: http://ec2-3-149-249-121.us-east-2.compute.amazonaws.com/
 
 This is not AutoML. It is not a black-box "fix my data" app. DataPrep Studio is designed for users who understand data science and want control over preprocessing choices.
 
@@ -39,6 +39,7 @@ Core capabilities implemented in the current demo release:
 - Get suggested analysis setup for target column, problem type, missing tokens, type overrides, and ignored ID-like columns.
 - Select a target column and problem type.
 - Save, update, and delete reusable analysis setup with missing tokens, ignored columns, and column type overrides.
+- Preserve settings with each analysis run and explicitly add normalization/drop steps from that snapshot to a pipeline.
 - Profile columns for type, missingness, cardinality, distributions, and warnings.
 - Detect ML-readiness issues such as missing values, duplicates, outliers, leakage candidates, high-cardinality features, target imbalance, and train/test drift.
 - Highlight analysis-specific preprocessing recommendations from notable findings.
@@ -72,7 +73,7 @@ Recommendations and readiness scores are heuristics. They help users prioritize 
 
 - Backend: Python, FastAPI, SQLAlchemy, SQLite, pandas, NumPy, scikit-learn
 - Frontend: React, Vite, TypeScript, plain CSS
-- Testing: pytest for backend, frontend production build checks, Playwright browser smoke tests
+- Testing: pytest for backend, frontend build checks, mocked Playwright UI tests, and real API browser tests with disposable persistence and downloaded-code replay
 - Storage: local filesystem under `backend/app/storage`
 - Exports: CSV, JSON, Markdown, generated Python code
 
@@ -125,7 +126,7 @@ The frontend defaults to:
 http://127.0.0.1:8000
 ```
 
-The app runs locally for development and is also available as a public AWS EC2 demo.
+The supported development workflow runs locally. The repository also contains an optional single-host AWS EC2 portfolio demo setup that retains SQLite and filesystem storage. Production deployment and multi-user infrastructure remain outside the MVP scope.
 
 ## Demo Flow
 
@@ -175,7 +176,7 @@ More checks: [Validation and smoke checks](docs/operations/validation.md).
 
 ## Current Status
 
-DataPrep Studio is at a demo-ready full-stack stage. The core workflow runs end to end locally and on a public AWS EC2 demo instance, with local SQLite/filesystem persistence and reproducible export artifacts.
+DataPrep Studio is at a demo-ready full-stack stage. The core workflow is validated end to end locally with SQLite/filesystem persistence and reproducible export artifacts. The EC2 guide describes an optional portfolio demo deployment, separate from local development and validation.
 
 Built so far:
 

@@ -18,6 +18,7 @@ It is designed for users who want to inspect data quality, choose transformation
 10. Review notable preprocessing recommendations, issues, charts, and column profiles, or read and print the inline analysis report.
 11. Add an accepted preprocessing recommendation directly into the pipeline with a clear action label, or build a pipeline manually.
 12. Review the pipeline recipe summary to understand what the enabled steps will do before preview or apply.
+    Use **Add Analysis Setup Steps** to explicitly add missing-token normalization and ignored-column removal from the immutable run settings. Those steps are editable; type overrides guide profiling without casting data.
 13. Generate a suggested pipeline draft, import an exported preprocessing config, or configure operation parameters manually with visible defaults, allowed values, and supported column types.
 14. Validate the pipeline against selected columns, profile types, and step-to-step column availability, with affected-step feedback, then preview before/after summaries, column-level diffs, and sample rows.
 15. Apply the pipeline.
@@ -64,3 +65,4 @@ It is designed for users who want to inspect data quality, choose transformation
 The app should surface issues and suggested actions, but the user chooses which transformations to apply.
 
 The readiness score is a prioritization heuristic, not a promise that model performance will improve.
+Train/test mode accepts test CSVs without the target column. Feature drift is still checked, target comparison is marked unavailable, and train labels remain separate from feature transformations. Processing notes explain any resolved feature-only duplicate subset.
